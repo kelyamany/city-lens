@@ -591,7 +591,7 @@
   .map-btn:hover { background: #f3f4f6; }
 
   .style-toggle {
-    bottom: 28px;
+    top: 10px;
     left: 10px;
   }
 

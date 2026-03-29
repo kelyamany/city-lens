@@ -99,8 +99,14 @@
           </div>
           <div class="mini-stat">
             <p class="mini-label">Gender</p>
-            <p class="mini-value">{malePct}% / {femalePct}%</p>
-            <p class="mini-sub">M / F</p>
+            <div class="gender-bar">
+              <div class="gender-m" style="width: {malePct}%"></div>
+              <div class="gender-f" style="width: {femalePct}%"></div>
+            </div>
+            <div class="gender-labels">
+              <span class="gender-tag male">♂ {malePct}%</span>
+              <span class="gender-tag female">♀ {femalePct}%</span>
+            </div>
           </div>
           <div class="mini-stat">
             <p class="mini-label">Median Age</p>
@@ -327,6 +333,34 @@
     font-size: 9px;
     color: var(--color-text-muted);
   }
+
+  .gender-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 6px 0 5px;
+    gap: 1px;
+  }
+  .gender-m {
+    background: #3b82f6;
+    border-radius: 3px 0 0 3px;
+  }
+  .gender-f {
+    background: #f472b6;
+    border-radius: 0 3px 3px 0;
+    flex: 1;
+  }
+  .gender-labels {
+    display: flex;
+    justify-content: space-between;
+  }
+  .gender-tag {
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .gender-tag.male  { color: #3b82f6; }
+  .gender-tag.female { color: #ec4899; }
 
   .stacked-bar {
     display: flex;
