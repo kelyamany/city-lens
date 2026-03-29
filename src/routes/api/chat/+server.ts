@@ -10,7 +10,7 @@ const getModel = () => {
   const googleKey = env.GOOGLE_GENERATIVE_AI_API_KEY;
 
   if (provider === 'gemini' && googleKey) {
-    return createGoogleGenerativeAI({ apiKey: googleKey })('gemini-2.0-flash');
+    return createGoogleGenerativeAI({ apiKey: googleKey })('gemini-3-flash-preview');
   }
   return createAnthropic({ apiKey: anthropicKey ?? '' })('claude-sonnet-4-6');
 };

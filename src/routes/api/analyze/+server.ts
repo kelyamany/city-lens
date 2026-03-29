@@ -9,7 +9,7 @@ import { resolveDistrict } from '$lib/api/districtResolver';
 
 const getModel = () => {
   if (env.AI_PROVIDER === 'gemini' && env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return createGoogleGenerativeAI({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY })('gemini-2.0-flash');
+    return createGoogleGenerativeAI({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY })('gemini-3-flash-preview');
   }
   return createAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? '' })('claude-sonnet-4-6');
 };
