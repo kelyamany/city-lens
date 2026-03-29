@@ -421,6 +421,11 @@
   // ─── Public API ───────────────────────────────────────────────────────────
   export function flyTo(lat: number, lon: number) {
     map?.flyTo({ center: [lon, lat], zoom: 15, duration: 1500 });
+    if (map) {
+      if (marker) marker.remove();
+      marker = new mapboxgl.Marker({ color: '#2563eb' }).setLngLat([lon, lat]).addTo(map);
+      updateCircle(lon, lat, currentRadius);
+    }
   }
 
   // ─── Mount ────────────────────────────────────────────────────────────────
