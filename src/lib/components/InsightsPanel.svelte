@@ -1,6 +1,6 @@
 <script lang="ts">
   import { selectedLocation } from '$lib/stores/map';
-  import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
+  import { resolveDistrict, resolveAreaLabel } from '$lib/api/districtResolver';
   import { layers } from '$lib/stores/layers';
   import type { Demographics } from '$lib/types';
 
@@ -14,7 +14,7 @@
   });
 
   let districtName = $derived(
-    $selectedLocation?.postnr ? resolveDistrictName($selectedLocation.postnr) : null
+    $selectedLocation?.postnr ? resolveAreaLabel($selectedLocation.postnr) : null
   );
 
   let totalPop = $derived(demographics?.totalPopulation ?? 0);

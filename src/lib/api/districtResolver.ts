@@ -29,6 +29,19 @@ export function resolveDistrictName(postalCode: string): string | null {
   return entry?.bydel ?? null;
 }
 
+/**
+ * Returns a more specific area label: uses `lokaludvalg` when meaningful,
+ * falls back to `bydel`. Avoids the generic "Indre By" for known sub-areas.
+ * Examples: 1153 → "Christianshavn", 1620 → "Vesterbro", 2200 → "Nørrebro"
+ */
+export function resolveAreaLabel(postalCode: string): string | null {
+  const entry = (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]
+    ?? inferLookup(postalCode);
+  if (!entry) return null;
+  if (entry.lokaludvalg && entry.lokaludvalg !== 'inner city') return entry.lokaludvalg;
+  return entry.bydel;
+}
+
 export function resolveDistrict(postalCode: string): Demographics | null {
   const lookup = (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]
     ?? inferLookup(postalCode);

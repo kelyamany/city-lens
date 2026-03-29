@@ -53,7 +53,26 @@ function buildSystemPrompt(context: any, placeContext = ''): string {
   if (b) {
     const d = b.demographics ?? {};
     const totalPop = d.totalPopulation ?? 0;
-    const pct = (n: number) => totalPop > 0 ? Math.round((n / totalPop) * 100) : 0;
+
+    // Each category uses its own population as denominator to avoid cross-level mismatches
+    // (totalPop may be postal-code level from DST; employment/background/marital are bydel level)
+    const popPct = (n: number) => totalPop > 0 ? Math.round((n / totalPop) * 100) : 0;
+
+    const empTotal = d.employment
+      ? d.employment.employed + d.employment.unemployed + d.employment.outsideWorkforce + d.employment.students
+      : 0;
+    const empPct = (n: number) => empTotal > 0 ? Math.round((n / empTotal) * 100) : 0;
+
+    const bgTotal = d.background
+      ? d.background.danish + d.background.western + d.background.nonWestern
+      : 0;
+    const bgPct = (n: number) => bgTotal > 0 ? Math.round((n / bgTotal) * 100) : 0;
+
+    const marTotal = d.maritalStatus
+      ? d.maritalStatus.single + d.maritalStatus.married + d.maritalStatus.divorced + d.maritalStatus.widowed
+      : 0;
+    const marPct = (n: number) => marTotal > 0 ? Math.round((n / marTotal) * 100) : 0;
+
     const edTotal = Math.max(Object.values(d.education ?? {}).reduce((a: number, v: unknown) => a + (v as number), 0), 1);
     const higherEdPct = Math.round(((d.education?.mediumHigher ?? 0) + (d.education?.longHigher ?? 0)) / edTotal * 100);
     const poiSummary = (b.pois ?? []).reduce((acc: Record<string, number>, p: any) => {
@@ -62,16 +81,16 @@ function buildSystemPrompt(context: any, placeContext = ''): string {
 
     const lines: string[] = [];
     if (d.totalPopulation) {
-      lines.push(`- Total population: ${totalPop.toLocaleString()}, Median age: ${d.medianAge ?? '?'} yrs, Gender: ${pct(d.male)}% M / ${pct(d.female)}% F`);
+      lines.push(`- Total population: ${totalPop.toLocaleString()}, Median age: ${d.medianAge ?? '?'} yrs, Gender: ${popPct(d.male)}% M / ${popPct(d.female)}% F`);
     }
     if (d.employment) {
-      lines.push(`- Employment: ${pct(d.employment.employed)}% employed, ${pct(d.employment.unemployed)}% unemployed`);
+      lines.push(`- Employment: ${empPct(d.employment.employed)}% employed, ${empPct(d.employment.unemployed)}% unemployed, ${empPct(d.employment.outsideWorkforce)}% outside workforce`);
     }
     if (d.background) {
-      lines.push(`- Background: ${pct(d.background.danish)}% Danish, ${pct(d.background.western)}% Western, ${pct(d.background.nonWestern)}% Non-Western`);
+      lines.push(`- Background: ${bgPct(d.background.danish)}% Danish, ${bgPct(d.background.western)}% Western, ${bgPct(d.background.nonWestern)}% Non-Western`);
     }
     if (d.maritalStatus) {
-      lines.push(`- Marital: ${pct(d.maritalStatus.single)}% single, ${pct(d.maritalStatus.married)}% married`);
+      lines.push(`- Marital: ${marPct(d.maritalStatus.single)}% single, ${marPct(d.maritalStatus.married)}% married, ${marPct(d.maritalStatus.divorced)}% divorced`);
     }
     if (d.education) {
       lines.push(`- Higher education: ${higherEdPct}% have medium or long higher education`);

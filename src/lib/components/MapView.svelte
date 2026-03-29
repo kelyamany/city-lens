@@ -6,7 +6,7 @@
   import { analysisRadius, mapCenter } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import { layers } from '$lib/stores/layers';
-  import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
+  import { resolveDistrict, resolveDistrictName, resolveAreaLabel } from '$lib/api/districtResolver';
 
   let { onPlotSelected }: { onPlotSelected: (data: any) => void } = $props();
 
@@ -135,7 +135,8 @@
             ...f,
             properties: {
               ...f.properties,
-              districtName: resolveDistrictName(postnr) ?? f.properties?.navn ?? '',
+              // Prefer DAWA postal area name (e.g. "København K") over generic bydel name
+              districtName: f.properties?.navn ?? resolveAreaLabel(postnr) ?? '',
               employmentRate,
               avgIncome: district.income?.avgDisposableIncomeDKK ?? 0,
               medianAge: district.medianAge,
