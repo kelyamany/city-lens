@@ -81,7 +81,6 @@ City Lens brings them together in one workflow:
 - Static public data for credibility
 - Maps for spatial reasoning
 - AI for interpretation
-- Fast fallback UX for reliable demos
 
 The result is a tool that feels useful even before the AI responds.
 
@@ -112,30 +111,6 @@ Example dataset groups:
 - Employment status
 
 These raw CSV files are transformed into static JSON at build time so the app can load insights instantly.
-
----
-
-## Project structure
-
-```text
-city-lens/
-├─ src/
-│  ├─ lib/
-│  │  ├─ api/
-│  │  ├─ components/
-│  │  ├─ stores/
-│  │  └─ types/
-│  └─ routes/
-├─ static/
-│  └─ data/
-│     ├─ raw/
-│     ├─ districts.json
-│     └─ postalLookup.json
-├─ scripts/
-│  └─ preprocess.ts
-├─ CLAUDE.md
-└─ README.md
-```
 
 ---
 
@@ -222,42 +197,11 @@ A good demo sequence is:
 
 1. Search for `Strømmen 3A, 2450 København`
 2. Let the map fly to the site
-3. Open the **Insights** tab and highlight 2–3 key metrics
-4. Switch to **AI Brief**
+3. Open the **Metrics** tab and highlight 2–3 key metrics
+4. Switch to **Insights**
 5. Read the recommended land use
 6. Ask a follow-up question
 7. Change the radius and show how nearby facilities analysis changes
-
----
-
-## Product principles
-
-This repo is optimized for:
-- Fast demo reliability
-- Instant non-AI insights
-- Clear map interaction
-- Small, composable UI pieces
-- Deterministic preprocessing
-- Safe fallbacks when APIs fail
-
-The app should remain useful even if:
-- AI is unavailable
-- POI requests fail
-- Some data is incomplete
-
----
-
-## Notes for contributors
-
-When contributing:
-- Keep preprocessing deterministic
-- Prefer typed data contracts
-- Avoid pushing core insight logic into the model
-- Preserve the non-AI Insights experience
-- Treat the selected location and radius as shared core state
-- Optimize for a crisp planner-facing workflow, not feature sprawl
-
-See `CLAUDE.md` for repository-specific development guidance.
 
 ---
 

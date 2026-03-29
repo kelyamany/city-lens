@@ -1,6 +1,6 @@
 <script lang="ts">
   import { selectedLocation, analysisRadius } from '$lib/stores/map';
-  import { resolveDistrict } from '$lib/api/districtResolver';
+  import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
   import type { Demographics } from '$lib/types';
 
   let demographics = $derived.by(() => {
@@ -8,6 +8,10 @@
     if (!loc?.postnr) return null;
     return resolveDistrict(loc.postnr);
   });
+
+  let districtName = $derived(
+    $selectedLocation?.postnr ? resolveDistrictName($selectedLocation.postnr) : null
+  );
 
   let totalPop = $derived(demographics?.totalPopulation ?? 0);
   let malePct = $derived(totalPop > 0 ? Math.round((demographics!.male / totalPop) * 100) : 0);
@@ -74,6 +78,13 @@
 
 {#if demographics}
   <div class="insights">
+    {#if districtName}
+      <div class="district-header">
+        <span class="district-label">DISTRICT</span>
+        <span class="district-name">{districtName}</span>
+      </div>
+    {/if}
+
     <div class="radius-section">
       <div class="radius-header">
         <span class="radius-label">Analysis Radius</span>
@@ -222,6 +233,30 @@
     flex-direction: column;
     gap: 20px;
     padding-bottom: 20px;
+  }
+
+  .district-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    background: #eff6ff;
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-primary);
+  }
+
+  .district-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .district-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-primary);
   }
 
   .radius-section {

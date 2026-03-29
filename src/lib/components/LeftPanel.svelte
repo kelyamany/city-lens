@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search } from 'lucide-svelte';
+  import { Search, MapPin, X } from 'lucide-svelte';
   import { searchAddress, type AddressSuggestion } from '$lib/api/dawa';
   import { layers } from '$lib/stores/layers';
   import LayerToggle from './LayerToggle.svelte';
@@ -9,17 +9,23 @@
   let query = $state('');
   let suggestions = $state<AddressSuggestion[]>([]);
   let showDropdown = $state(false);
+  let isSearching = $state(false);
+  let activeIndex = $state(-1);
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   function handleInput() {
     clearTimeout(debounceTimer);
+    activeIndex = -1;
     debounceTimer = setTimeout(async () => {
       if (query.length >= 2) {
+        isSearching = true;
         suggestions = await searchAddress(query);
+        isSearching = false;
         showDropdown = suggestions.length > 0;
       } else {
         suggestions = [];
         showDropdown = false;
+        isSearching = false;
       }
     }, 300);
   }
@@ -28,6 +34,7 @@
     query = s.label;
     showDropdown = false;
     suggestions = [];
+    activeIndex = -1;
     onLocationSelected({
       lat: s.lat,
       lon: s.lon,
@@ -38,9 +45,26 @@
     });
   }
 
+  function clearSearch() {
+    query = '';
+    suggestions = [];
+    showDropdown = false;
+    activeIndex = -1;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       showDropdown = false;
+      activeIndex = -1;
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, suggestions.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, -1);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[activeIndex]);
     }
   }
 </script>
@@ -57,22 +81,43 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="search-section" onclick={(e: MouseEvent) => e.stopPropagation()}>
-      <div class="search-input-wrapper">
-        <Search size={16} />
+      <div class="search-input-wrapper" class:searching={isSearching}>
+        {#if isSearching}
+          <span class="spinner"></span>
+        {:else}
+          <Search size={16} />
+        {/if}
         <input
           type="text"
-          placeholder="Enter an address ..."
+          placeholder="Search an address..."
           bind:value={query}
           oninput={handleInput}
           onkeydown={handleKeydown}
+          autocomplete="off"
         />
+        {#if query.length > 0}
+          <button class="clear-btn" onclick={clearSearch} tabindex="-1">
+            <X size={14} />
+          </button>
+        {/if}
       </div>
 
-      {#if showDropdown}
-        <ul class="suggestions">
-          {#each suggestions as s}
-            <li>
-              <button onclick={() => selectSuggestion(s)}>{s.label}</button>
+      {#if showDropdown && suggestions.length > 0}
+        <ul class="suggestions" role="listbox">
+          {#each suggestions as s, i}
+            <li role="option" aria-selected={i === activeIndex}>
+              <!-- svelte-ignore a11y_mouse_events_have_key_events -->
+              <button
+                onclick={() => selectSuggestion(s)}
+                class:highlighted={i === activeIndex}
+                onmouseenter={() => (activeIndex = i)}
+              >
+                <span class="item-icon"><MapPin size={12} /></span>
+                <span class="suggestion-text">
+                  <span class="primary">{s.primaryLine}</span>
+                  <span class="secondary">{s.secondaryLine}</span>
+                </span>
+              </button>
             </li>
           {/each}
         </ul>
@@ -141,6 +186,12 @@
     border-radius: var(--radius-md);
     background: #f9fafb;
     color: var(--color-text-muted);
+    transition: border-color 0.15s;
+  }
+
+  .search-input-wrapper:focus-within {
+    border-color: var(--color-primary);
+    background: #fff;
   }
 
   input {
@@ -156,41 +207,100 @@
     color: #9ca3af;
   }
 
+  .clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #9ca3af;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .clear-btn:hover {
+    color: var(--color-text);
+  }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
   .suggestions {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
     background: white;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    margin-top: 4px;
     list-style: none;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    max-height: 240px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    max-height: 280px;
     overflow-y: auto;
+    padding: 4px 0;
   }
 
   .suggestions li button {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 9px 12px;
     text-align: left;
     border: none;
     background: none;
     cursor: pointer;
-    font-size: 12px;
     color: var(--color-text);
-    border-bottom: 1px solid var(--color-border);
   }
 
-  .suggestions li:last-child button {
-    border-bottom: none;
-  }
-
+  .suggestions li button.highlighted,
   .suggestions li button:hover {
     background: #f3f4f6;
+  }
+
+  .item-icon {
+    color: #9ca3af;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .suggestion-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .primary {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .secondary {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .section-label {

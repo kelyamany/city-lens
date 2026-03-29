@@ -6,6 +6,8 @@ export interface AddressSuggestion {
   lat: number;
   lon: number;
   neighbourhood: string;
+  primaryLine: string;
+  secondaryLine: string;
 }
 
 export async function searchAddress(query: string): Promise<AddressSuggestion[]> {
@@ -27,6 +29,8 @@ export async function searchAddress(query: string): Promise<AddressSuggestion[]>
       lat: item.y ?? 55.6761,
       lon: item.x ?? 12.5683,
       neighbourhood: item.supplerendebynavn || item.postnrnavn || '',
+      primaryLine: `${item.vejnavn} ${item.husnr}`,
+      secondaryLine: `${item.postnr} ${item.postnrnavn}${item.supplerendebynavn ? ' · ' + item.supplerendebynavn : ''}`,
     }));
   } catch {
     return [];

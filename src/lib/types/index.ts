@@ -46,3 +46,23 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
+
+export interface PlaceResult {
+  name: string;
+  rating: number;
+  address: string;
+  placeId: string;
+}
+
+export interface SocialCategory {
+  type: string;
+  label: string;
+  avgRating: number;
+  count: number;
+  topPlaces: PlaceResult[];
+}
+
+export interface SocialData {
+  categories: SocialCategory[];
+  error?: string;
+}

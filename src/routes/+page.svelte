@@ -10,18 +10,14 @@
   let chatMessages = $state<ChatMessage[]>([]);
   let isChatLoading = $state(false);
 
-  async function handleLocationSelected(loc: any) {
-    selectedLocation.set(loc);
+  async function runAnalysis(loc: any, radius: number) {
     isAnalyzing.set(true);
     brief.set(null);
-    chatMessages = [];
-    mapRef?.flyTo(loc.lat, loc.lon);
-
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...loc, radius: $analysisRadius }),
+        body: JSON.stringify({ ...loc, radius }),
       });
       const data = await res.json();
 
@@ -47,6 +43,13 @@
     }
   }
 
+  async function handleLocationSelected(loc: any) {
+    selectedLocation.set(loc);
+    chatMessages = [];
+    mapRef?.flyTo(loc.lat, loc.lon);
+    await runAnalysis(loc, $analysisRadius);
+  }
+
   async function handleChatSubmit(message: string) {
     chatMessages = [...chatMessages, { role: 'user', content: message }];
     isChatLoading = true;
@@ -61,12 +64,12 @@
         body: JSON.stringify({
           messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
           context: {
+            lat: loc?.lat,
+            lon: loc?.lon,
             address: loc?.address,
             neighbourhood: loc?.neighbourhood,
-            brief: currentBrief
-              ? { topUse: currentBrief.topUse, summary: currentBrief.summary }
-              : null,
             radius: $analysisRadius,
+            brief: currentBrief ?? null,
           },
         }),
       });
@@ -79,7 +82,7 @@
         return;
       }
 
-      // Read the streaming response
+      // Stream the response
       const reader = res.body?.getReader();
       if (!reader) return;
 
@@ -92,11 +95,11 @@
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        // Parse data stream format
         const lines = chunk.split('\n');
+
         for (const line of lines) {
           if (line.startsWith('0:')) {
-            // Text chunk - parse the JSON string
+            // Text delta
             try {
               const text = JSON.parse(line.slice(2));
               assistantMsg += text;
@@ -106,6 +109,19 @@
               ];
             } catch {
               // skip malformed chunks
+            }
+          } else if (line.startsWith('a:')) {
+            // Tool result — handle setRadius
+            try {
+              const toolResult = JSON.parse(line.slice(2));
+              const result = toolResult?.result;
+              if (result?.action === 'setRadius' && typeof result.value === 'number') {
+                analysisRadius.set(result.value);
+                const loc = $selectedLocation;
+                if (loc) await runAnalysis(loc, result.value);
+              }
+            } catch {
+              // skip
             }
           }
         }

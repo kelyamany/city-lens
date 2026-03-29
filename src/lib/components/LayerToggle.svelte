@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Users, GraduationCap, MapPin, Home } from 'lucide-svelte';
+  import { Users, GraduationCap, MapPin, Star } from 'lucide-svelte';
   import type { LayerState } from '$lib/types';
   import { layers } from '$lib/stores/layers';
   let { layer }: { layer: LayerState } = $props();
@@ -9,7 +9,7 @@
     'users': Users,
     'graduation-cap': GraduationCap,
     'map-pin': MapPin,
-    'home': Home,
+    'star': Star,
   };
 
   function toggle() {

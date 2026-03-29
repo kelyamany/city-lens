@@ -1,6 +1,10 @@
 import type { Demographics } from '$lib/types';
 import { postalLookup, districtsData } from '$lib/data';
 
+export function resolveDistrictName(postalCode: string): string | null {
+  return (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]?.bydel ?? null;
+}
+
 export function resolveDistrict(postalCode: string): Demographics | null {
   const lookup = postalLookup[postalCode];
   if (!lookup) return null;

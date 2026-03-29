@@ -1,12 +1,13 @@
 <script lang="ts">
   import { MapPin, Sparkles } from 'lucide-svelte';
-  import { selectedLocation, isAnalyzing } from '$lib/stores/map';
+  import { selectedLocation, isAnalyzing, analysisRadius } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import StatCard from './StatCard.svelte';
   import SkeletonBrief from './SkeletonBrief.svelte';
   import ChatInput from './ChatInput.svelte';
   import InsightsPanel from './InsightsPanel.svelte';
-  import type { ChatMessage } from '$lib/types';
+  import SocialPanel from './SocialPanel.svelte';
+  import type { ChatMessage, SocialData } from '$lib/types';
 
   let { chatMessages = [], onChatSubmit, isChatLoading = false }: {
     chatMessages?: ChatMessage[];
@@ -14,7 +15,12 @@
     isChatLoading?: boolean;
   } = $props();
 
-  let activeTab = $state<'brief' | 'insights'>('brief');
+  let activeTab = $state<'brief' | 'insights' | 'social'>('brief');
+
+  // Social tab state
+  let socialData = $state<SocialData | null>(null);
+  let isSocialLoading = $state(false);
+  let socialFetchedFor = $state<string | null>(null);
 
   let employedPct = $derived(
     $brief && $brief.demographics.totalPopulation > 0
@@ -33,6 +39,33 @@
           : 'Low'
       : '--'
   );
+
+  async function fetchSocialData(lat: number, lon: number, radius: number) {
+    isSocialLoading = true;
+    socialData = null;
+    try {
+      const res = await fetch('/api/social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lon, radius }),
+      });
+      socialData = await res.json();
+    } catch {
+      socialData = null;
+    } finally {
+      isSocialLoading = false;
+    }
+  }
+
+  function switchToSocial() {
+    activeTab = 'social';
+    const loc = $selectedLocation;
+    const key = loc ? `${loc.lat},${loc.lon},${$analysisRadius}` : null;
+    if (loc && key !== socialFetchedFor) {
+      socialFetchedFor = key;
+      fetchSocialData(loc.lat, loc.lon, $analysisRadius);
+    }
+  }
 </script>
 
 <aside class="right-panel">
@@ -54,6 +87,13 @@
       onclick={() => (activeTab = 'insights')}
     >
       Metrics
+    </button>
+    <button
+      class="tab"
+      class:active={activeTab === 'social'}
+      onclick={switchToSocial}
+    >
+      Social
     </button>
   </div>
 
@@ -101,6 +141,11 @@
                 <p>{msg.content}</p>
               </div>
             {/each}
+            {#if isChatLoading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1].role === 'assistant' && chatMessages[chatMessages.length - 1].content === ''}
+              <div class="chat-msg assistant typing">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </div>
+            {/if}
           </div>
 
           <ChatInput onSubmit={onChatSubmit} disabled={isChatLoading} />
@@ -110,8 +155,10 @@
           <p>Analysis could not be completed. Check your API keys.</p>
         </div>
       {/if}
-    {:else}
+    {:else if activeTab === 'insights'}
       <InsightsPanel />
+    {:else if activeTab === 'social'}
+      <SocialPanel data={socialData} isLoading={isSocialLoading} />
     {/if}
   </div>
 </aside>
@@ -253,7 +300,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
   }
 
@@ -275,5 +322,29 @@
     background: #f3f4f6;
     align-self: flex-start;
     max-width: 85%;
+  }
+
+  /* Typing indicator */
+  .chat-msg.typing {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    background: #9ca3af;
+    border-radius: 50%;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
   }
 </style>

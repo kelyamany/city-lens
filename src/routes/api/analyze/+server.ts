@@ -12,7 +12,7 @@ const googleAI = createGoogleGenerativeAI({ apiKey: GOOGLE_GENERATIVE_AI_API_KEY
 
 const getModel = () =>
   AI_PROVIDER === 'gemini'
-    ? googleAI('gemini-3-flash-preview')
+    ? googleAI('gemini-2.0-flash')
     : anthropicAI('claude-sonnet-4-6');
 
 const schema = z.object({
