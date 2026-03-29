@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import mapboxgl from 'mapbox-gl';
-  import { PUBLIC_MAPBOX_TOKEN } from '$env/static/public';
+  import { env } from '$env/dynamic/public';
+  const PUBLIC_MAPBOX_TOKEN = env.PUBLIC_MAPBOX_TOKEN;
   import { analysisRadius } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import { layers } from '$lib/stores/layers';

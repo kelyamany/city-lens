@@ -88,7 +88,7 @@
       Metrics
     </button>
     <button class="tab" class:active={activeTab === 'social'} onclick={switchToSocial}>
-      Social
+      Social Lens
     </button>
   </div>
 

@@ -1,4 +1,5 @@
-import { PUBLIC_MAPBOX_TOKEN } from '$env/static/public';
+import { env } from '$env/dynamic/public';
+const PUBLIC_MAPBOX_TOKEN = env.PUBLIC_MAPBOX_TOKEN;
 
 export interface AddressSuggestion {
   label: string;

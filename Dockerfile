@@ -14,9 +14,6 @@ FROM deps AS builder
 
 WORKDIR /app
 
-ARG PUBLIC_MAPBOX_TOKEN
-ENV PUBLIC_MAPBOX_TOKEN=$PUBLIC_MAPBOX_TOKEN
-
 # Now copy the full source (node_modules already in /app from deps stage)
 COPY . .
 
