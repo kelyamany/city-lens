@@ -104,7 +104,7 @@
       {:else if $brief?.demographics}
         <div class="brief-content">
           <p class="meta">
-            {$brief.neighbourhood} &middot; Copenhagen &middot; Generated just now
+            {$brief.neighbourhood}
           </p>
 
           <div class="stat-row">

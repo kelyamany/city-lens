@@ -3,7 +3,7 @@ import type { POI } from '$lib/types';
 export async function getPOIs(lat: number, lon: number, radiusMeters: number = 500): Promise<POI[]> {
   const query = `[out:json][timeout:15];
 (
-  node["amenity"~"school|hospital|cafe|restaurant|library|kindergarten|pharmacy|clinic"](around:${radiusMeters},${lat},${lon});
+  node["amenity"~"school|hospital|library|kindergarten|pharmacy|clinic"](around:${radiusMeters},${lat},${lon});
   node["leisure"~"park|playground|sports_centre"](around:${radiusMeters},${lat},${lon});
 );
 out body;`;

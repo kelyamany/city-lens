@@ -28,9 +28,6 @@
     school:        { color: '#3b82f6', label: 'Education' },
     kindergarten:  { color: '#3b82f6', label: 'Education' },
     library:       { color: '#3b82f6', label: 'Education' },
-    restaurant:    { color: '#f97316', label: 'Food & Drink' },
-    cafe:          { color: '#f97316', label: 'Food & Drink' },
-    bar:           { color: '#f97316', label: 'Food & Drink' },
     park:          { color: '#22c55e', label: 'Recreation' },
     playground:    { color: '#22c55e', label: 'Recreation' },
     sports_centre: { color: '#22c55e', label: 'Recreation' },
@@ -360,9 +357,7 @@
       <p class="legend-title">Facilities</p>
       <div class="legend-row"><span class="dot" style="background:#ef4444"></span>Healthcare</div>
       <div class="legend-row"><span class="dot" style="background:#3b82f6"></span>Education</div>
-      <div class="legend-row"><span class="dot" style="background:#f97316"></span>Food & Drink</div>
       <div class="legend-row"><span class="dot" style="background:#22c55e"></span>Recreation</div>
-      <div class="legend-row"><span class="dot" style="background:#6b7280"></span>Other</div>
     </div>
   {/if}
 </div>
