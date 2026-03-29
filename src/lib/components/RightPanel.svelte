@@ -1,5 +1,6 @@
 <script lang="ts">
   import { MapPin, Sparkles } from 'lucide-svelte';
+  import { marked } from 'marked';
   import { selectedLocation, isAnalyzing, analysisRadius } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import StatCard from './StatCard.svelte';
@@ -130,7 +131,11 @@
           <div class="chat-thread">
             {#each chatMessages as msg}
               <div class="chat-msg {msg.role}">
-                <p>{msg.content}</p>
+                {#if msg.role === 'assistant'}
+                  <div class="md">{@html marked.parse(msg.content)}</div>
+                {:else}
+                  <p>{msg.content}</p>
+                {/if}
               </div>
             {/each}
             {#if isChatLoading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1].content === ''}
@@ -340,6 +345,20 @@
     align-self: flex-start;
     max-width: 85%;
   }
+
+  /* Markdown rendering inside assistant messages */
+  .chat-msg.assistant :global(.md > *:first-child) { margin-top: 0; }
+  .chat-msg.assistant :global(.md > *:last-child)  { margin-bottom: 0; }
+  .chat-msg.assistant :global(.md p)   { margin: 0 0 6px; }
+  .chat-msg.assistant :global(.md ul),
+  .chat-msg.assistant :global(.md ol)  { margin: 4px 0 6px; padding-left: 16px; }
+  .chat-msg.assistant :global(.md li)  { margin-bottom: 2px; }
+  .chat-msg.assistant :global(.md strong) { font-weight: 600; }
+  .chat-msg.assistant :global(.md em)     { font-style: italic; }
+  .chat-msg.assistant :global(.md code)   { background: #e5e7eb; border-radius: 3px; padding: 1px 4px; font-size: 11px; font-family: monospace; }
+  .chat-msg.assistant :global(.md h1),
+  .chat-msg.assistant :global(.md h2),
+  .chat-msg.assistant :global(.md h3) { font-size: 12px; font-weight: 700; margin: 6px 0 3px; }
 
   .chat-msg.typing {
     display: flex;

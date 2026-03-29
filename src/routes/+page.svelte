@@ -90,24 +90,8 @@
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('0:')) {
-            try {
-              assistantMsg += JSON.parse(line.slice(2));
-              chatMessages = [...chatMessages.slice(0, -1), { role: 'assistant', content: assistantMsg }];
-            } catch { /* skip */ }
-          } else if (line.startsWith('a:')) {
-            try {
-              const toolResult = JSON.parse(line.slice(2));
-              const result = toolResult?.result;
-              if (result?.action === 'setRadius' && typeof result.value === 'number') {
-                analysisRadius.set(result.value);
-                const loc = $selectedLocation;
-                if (loc) await runAnalysis(loc, result.value);
-              }
-            } catch { /* skip */ }
-          }
-        }
+        assistantMsg += chunk;
+        chatMessages = [...chatMessages.slice(0, -1), { role: 'assistant', content: assistantMsg }];
       }
     } catch (e) {
       console.error('Chat error:', e);
