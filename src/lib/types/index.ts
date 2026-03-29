@@ -33,7 +33,8 @@ export interface LayerState {
   id: string;
   label: string;
   icon: string;
-  active: boolean;
+  active: boolean;     // controls Metrics tab + AI context
+  mapVisible?: boolean; // controls map overlay (choropleth / POI markers)
 }
 
 export interface AreaBrief {

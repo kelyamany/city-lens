@@ -6,6 +6,7 @@
   import { analysisRadius, mapCenter } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import { layers } from '$lib/stores/layers';
+  import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
 
   let { onPlotSelected }: { onPlotSelected: (data: any) => void } = $props();
 
@@ -20,6 +21,9 @@
   let currentRadius = 500;
   let currentPois: any[] = [];
   let facilitiesActive = false;
+  let demoActive = false;
+  let incomeActive = false;
+  let cachedChoroplethGeoJSON: any = null; // module-level cache; survives style reloads
 
   // ─── Category config ───────────────────────────────────────────────────────
   const CATEGORY: Record<string, { color: string; label: string }> = {
@@ -37,6 +41,8 @@
 
   // ─── Reactive state for template only ─────────────────────────────────────
   let showLegend = $state(false);
+  let showDemoChoropleth  = $state(false);
+  let showIncomeChoropleth = $state(false);
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   function createCircleGeoJSON(lng: number, lat: number, radiusMeters: number) {
@@ -96,6 +102,152 @@
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
     }
     showLegend = visible && currentPois.length > 0;
+  }
+
+  // ─── Choropleth helpers ───────────────────────────────────────────────────
+
+  async function loadChoroplethData(): Promise<any> {
+    if (cachedChoroplethGeoJSON) return cachedChoroplethGeoJSON;
+    try {
+      const res = await fetch(
+        'https://api.dataforsyningen.dk/postnumre?kommunekode=0101&format=geojson',
+        { signal: AbortSignal.timeout(12_000) }
+      );
+      if (!res.ok) return null;
+      const raw = await res.json();
+
+      const enriched = (raw.features as any[])
+        .map((f) => {
+          const postnr = String(f.properties?.nr ?? '').padStart(4, '0');
+          const district = resolveDistrict(postnr);
+          if (!district) return null;
+
+          const empTotal = district.employment.employed + district.employment.unemployed +
+                           district.employment.outsideWorkforce + district.employment.students;
+          const employmentRate = empTotal > 0
+            ? Math.round((district.employment.employed / empTotal) * 100) : 0;
+
+          const edTotal = Object.values(district.education).reduce((a, v) => a + (v as number), 0);
+          const higherEdPct = edTotal > 0
+            ? Math.round(((district.education.mediumHigher + district.education.longHigher) / edTotal) * 100) : 0;
+
+          return {
+            ...f,
+            properties: {
+              ...f.properties,
+              districtName: resolveDistrictName(postnr) ?? f.properties?.navn ?? '',
+              employmentRate,
+              avgIncome: district.income?.avgDisposableIncomeDKK ?? 0,
+              medianAge: district.medianAge,
+              higherEdPct,
+            },
+          };
+        })
+        .filter(Boolean);
+
+      cachedChoroplethGeoJSON = { ...raw, features: enriched };
+      return cachedChoroplethGeoJSON;
+    } catch {
+      return null;
+    }
+  }
+
+  function applyChoroplethVisibility() {
+    if (!map?.isStyleLoaded()) return;
+    const dVis = demoActive   ? 'visible' : 'none';
+    const iVis = incomeActive ? 'visible' : 'none';
+    const bVis = (demoActive || incomeActive) ? 'visible' : 'none';
+    if (map.getLayer('choropleth-demographics')) map.setLayoutProperty('choropleth-demographics', 'visibility', dVis);
+    if (map.getLayer('choropleth-income'))       map.setLayoutProperty('choropleth-income',       'visibility', iVis);
+    if (map.getLayer('choropleth-borders'))      map.setLayoutProperty('choropleth-borders',      'visibility', bVis);
+    showDemoChoropleth   = demoActive;
+    showIncomeChoropleth = incomeActive;
+  }
+
+  let choroplethPopup: mapboxgl.Popup | null = null;
+
+  async function setupChoroplethLayers() {
+    if (!map) return;
+    const geodata = await loadChoroplethData();
+    if (!geodata || !map) return;
+
+    // Source is cleared on style.load so re-add it every time
+    if (!map.getSource('districts')) {
+      map.addSource('districts', { type: 'geojson', data: geodata });
+    }
+
+    const before = 'radius-circle-fill'; // choropleth goes below radius ring + POIs
+
+    if (!map.getLayer('choropleth-demographics')) {
+      map.addLayer({
+        id: 'choropleth-demographics',
+        type: 'fill',
+        source: 'districts',
+        paint: {
+          'fill-color': ['interpolate', ['linear'], ['get', 'employmentRate'],
+            55, '#dbeafe', 68, '#60a5fa', 82, '#1e3a8a'],
+          'fill-opacity': 0.58,
+        },
+        layout: { visibility: 'none' },
+      }, before);
+    }
+
+    if (!map.getLayer('choropleth-income')) {
+      map.addLayer({
+        id: 'choropleth-income',
+        type: 'fill',
+        source: 'districts',
+        paint: {
+          'fill-color': ['interpolate', ['linear'], ['get', 'avgIncome'],
+            220000, '#ecfdf5', 320000, '#34d399', 430000, '#065f46'],
+          'fill-opacity': 0.55,
+        },
+        layout: { visibility: 'none' },
+      }, before);
+    }
+
+    if (!map.getLayer('choropleth-borders')) {
+      map.addLayer({
+        id: 'choropleth-borders',
+        type: 'line',
+        source: 'districts',
+        paint: { 'line-color': 'rgba(255,255,255,0.75)', 'line-width': 1.5 },
+        layout: { visibility: 'none' },
+      }, before);
+    }
+
+    // Hover tooltips
+    const addHover = (layerId: string, buildHtml: (props: any) => string) => {
+      map!.off('mousemove', layerId, () => {});
+      map!.off('mouseleave', layerId, () => {});
+      map!.on('mousemove', layerId, (e) => {
+        if (!map || !e.features?.length) return;
+        map.getCanvas().style.cursor = 'default';
+        choroplethPopup?.remove();
+        choroplethPopup = new mapboxgl.Popup({ closeButton: false, offset: 8 })
+          .setLngLat(e.lngLat)
+          .setHTML(buildHtml(e.features[0].properties))
+          .addTo(map);
+      });
+      map!.on('mouseleave', layerId, () => {
+        if (map) map.getCanvas().style.cursor = '';
+        choroplethPopup?.remove();
+        choroplethPopup = null;
+      });
+    };
+
+    addHover('choropleth-demographics', (p) =>
+      `<div style="font-size:12px;font-weight:700;color:#111">${p.districtName}</div>` +
+      `<div style="font-size:11px;color:#374151;margin-top:3px">Employment: <b>${p.employmentRate}%</b></div>` +
+      `<div style="font-size:11px;color:#374151">Median age: <b>${p.medianAge}</b></div>`
+    );
+    addHover('choropleth-income', (p) =>
+      `<div style="font-size:12px;font-weight:700;color:#111">${p.districtName}</div>` +
+      `<div style="font-size:11px;color:#374151;margin-top:3px">Avg. income: <b>${Math.round((p.avgIncome ?? 0) / 1000)}k DKK</b></div>` +
+      `<div style="font-size:11px;color:#374151">Higher ed: <b>${p.higherEdPct}%</b></div>`
+    );
+
+    applyChoroplethVisibility();
   }
 
   // ─── Named handlers (prevents duplication on style reload) ────────────────
@@ -224,6 +376,9 @@
 
     // Apply current visibility
     setPOIVisibility(facilitiesActive);
+
+    // Choropleth layers (async — fetches DAWA GeoJSON if not cached)
+    setupChoroplethLayers();
   }
 
   // ─── Store subscriptions ──────────────────────────────────────────────────
@@ -244,9 +399,13 @@
   });
 
   const unsubLayers = layers.subscribe((layersVal) => {
-    const active = layersVal.find((l) => l.id === 'facilities')?.active ?? false;
-    facilitiesActive = active;
-    if (map?.isStyleLoaded()) setPOIVisibility(active);
+    facilitiesActive = layersVal.find((l) => l.id === 'facilities')?.mapVisible ?? false;
+    demoActive       = layersVal.find((l) => l.id === 'demographics')?.mapVisible ?? false;
+    incomeActive     = layersVal.find((l) => l.id === 'income')?.mapVisible ?? false;
+    if (map?.isStyleLoaded()) {
+      setPOIVisibility(facilitiesActive);
+      applyChoroplethVisibility();
+    }
   });
 
   // ─── Style toggle ─────────────────────────────────────────────────────────
@@ -366,6 +525,26 @@
       <div class="legend-row"><span class="dot" style="background:#22c55e"></span>Recreation</div>
     </div>
   {/if}
+
+  <!-- Choropleth legend -->
+  {#if showDemoChoropleth || showIncomeChoropleth}
+    <div class="choropleth-legend" role="complementary" aria-label="Choropleth legend">
+      {#if showDemoChoropleth}
+        <div class="choro-item">
+          <p class="choro-title">Demographics — Employment</p>
+          <div class="choro-gradient" style="background: linear-gradient(to right, #dbeafe, #60a5fa, #1e3a8a)"></div>
+          <div class="choro-labels"><span>Low</span><span>High</span></div>
+        </div>
+      {/if}
+      {#if showIncomeChoropleth}
+        <div class="choro-item">
+          <p class="choro-title">Income &amp; Education — Avg. Income</p>
+          <div class="choro-gradient" style="background: linear-gradient(to right, #ecfdf5, #34d399, #065f46)"></div>
+          <div class="choro-labels"><span>Lower</span><span>Higher</span></div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -452,5 +631,46 @@
     flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,0.8);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+  }
+
+  /* Choropleth legend */
+  .choropleth-legend {
+    position: absolute;
+    bottom: 72px;
+    right: 50px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .choro-item {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    min-width: 160px;
+  }
+
+  .choro-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-text-muted);
+    margin-bottom: 5px;
+  }
+
+  .choro-gradient {
+    height: 8px;
+    border-radius: 4px;
+    margin-bottom: 3px;
+  }
+
+  .choro-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #6b7280;
   }
 </style>
