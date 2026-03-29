@@ -36,10 +36,10 @@ export interface AreaBrief {
   city: string;
   demographics: Demographics;
   pois: POI[];
-  summary: string;
-  topUse: string;
-  tags: string[];
-  reasoning: string;
+  summary?: string;
+  topUse?: string;
+  tags?: string[];
+  reasoning?: string;
 }
 
 export interface ChatMessage {

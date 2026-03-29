@@ -10,7 +10,7 @@
   let chatMessages = $state<ChatMessage[]>([]);
   let isChatLoading = $state(false);
   let leftPanelOpen = $state(true);
-  let rightPanelOpen = $state(false); // mobile: right panel as bottom sheet
+  let rightPanelOpen = $state(false);
 
   async function runAnalysis(loc: any, radius: number) {
     isAnalyzing.set(true);
@@ -28,10 +28,6 @@
           city: 'Copenhagen',
           demographics: data.demographics,
           pois: data.pois ?? [],
-          summary: data.summary,
-          topUse: data.topUse,
-          tags: data.tags ?? [],
-          reasoning: data.reasoning,
         });
       }
     } catch (e) {
@@ -44,7 +40,7 @@
   async function handleLocationSelected(loc: any) {
     selectedLocation.set(loc);
     chatMessages = [];
-    rightPanelOpen = true; // auto-open on mobile
+    rightPanelOpen = true;
     mapRef?.flyTo(loc.lat, loc.lon);
     await runAnalysis(loc, $analysisRadius);
   }
@@ -55,47 +51,36 @@
 
     try {
       const loc = $selectedLocation;
-      const currentBrief = $brief;
-
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: chatMessages.filter((m) => m.role === 'user' || m.content !== ''),
           context: {
             lat: loc?.lat,
             lon: loc?.lon,
             address: loc?.address,
             neighbourhood: loc?.neighbourhood,
             radius: $analysisRadius,
-            brief: currentBrief ?? null,
+            brief: $brief ?? null,
           },
         }),
       });
 
-      if (!res.ok) {
-        chatMessages = [...chatMessages, { role: 'assistant', content: 'Sorry, could not process that.' }];
-        return;
+      const data = await res.json();
+      chatMessages = [...chatMessages, { role: 'assistant', content: data.content ?? 'No response.' }];
+
+      // Handle setRadius tool result
+      for (const step of data.steps ?? []) {
+        for (const tr of step.toolResults ?? []) {
+          if (tr.result?.action === 'setRadius' && typeof tr.result.value === 'number') {
+            analysisRadius.set(tr.result.value);
+            if (loc) await runAnalysis(loc, tr.result.value);
+          }
+        }
       }
-
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      let assistantMsg = '';
-      chatMessages = [...chatMessages, { role: 'assistant', content: '' }];
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        assistantMsg += chunk;
-        chatMessages = [...chatMessages.slice(0, -1), { role: 'assistant', content: assistantMsg }];
-      }
-    } catch (e) {
-      console.error('Chat error:', e);
-      chatMessages = [...chatMessages, { role: 'assistant', content: 'An error occurred. Please try again.' }];
+    } catch {
+      chatMessages = [...chatMessages, { role: 'assistant', content: 'Something went wrong. Please try again.' }];
     } finally {
       isChatLoading = false;
     }
@@ -104,7 +89,6 @@
 
 <!-- Mobile overlay backdrop -->
 {#if rightPanelOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="mobile-backdrop" role="presentation" onclick={() => (rightPanelOpen = false)}></div>
 {/if}
@@ -119,7 +103,6 @@
   </div>
 
   <div class="map-wrapper">
-    <!-- Left panel toggle (visible on desktop when panel is closed, always on mobile) -->
     {#if !leftPanelOpen}
       <button class="panel-toggle-btn left" onclick={() => (leftPanelOpen = true)} aria-label="Open left panel" title="Open sidebar">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -128,7 +111,6 @@
       </button>
     {/if}
 
-    <!-- Mobile: open right panel -->
     {#if $selectedLocation || $isAnalyzing}
       <button class="panel-toggle-btn right mobile-only" onclick={() => (rightPanelOpen = !rightPanelOpen)} aria-label="Toggle area brief">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -151,7 +133,6 @@
 </div>
 
 <style>
-  /* ── Base (desktop 3-column layout) ─────────────────────────────────── */
   .app-shell {
     display: grid;
     grid-template-columns: 320px 1fr 380px;
@@ -163,7 +144,6 @@
     transition: grid-template-columns 0.25s ease;
   }
 
-  /* Slightly wider right panel when sidebar is collapsed */
   .app-shell.left-collapsed {
     grid-template-columns: 0px 1fr 420px;
   }
@@ -192,7 +172,6 @@
     min-width: 0;
   }
 
-  /* ── Panel toggle floating buttons ──────────────────────────────────── */
   .panel-toggle-btn {
     position: absolute;
     z-index: 15;
@@ -211,16 +190,8 @@
   }
 
   .panel-toggle-btn:hover { background: #f3f4f6; }
-
-  .panel-toggle-btn.left {
-    top: 12px;
-    left: 12px;
-  }
-
-  .panel-toggle-btn.right {
-    top: 12px;
-    right: 12px;
-  }
+  .panel-toggle-btn.left { top: 12px; left: 12px; }
+  .panel-toggle-btn.right { top: 12px; right: 12px; }
 
   .btn-badge {
     position: absolute;
@@ -240,41 +211,22 @@
     50% { opacity: 0.4; }
   }
 
-  /* ── Mobile backdrop ─────────────────────────────────────────────────── */
-  .mobile-backdrop {
-    display: none;
-  }
-
-  /* ── Mobile only utility ─────────────────────────────────────────────── */
+  .mobile-backdrop { display: none; }
   .mobile-only { display: none; }
 
-  /* ── Laptop/large tablet (< 1200px) ─────────────────────────────────── */
   @media (max-width: 1200px) {
-    .app-shell {
-      grid-template-columns: 280px 1fr 340px;
-    }
-    .app-shell.left-collapsed {
-      grid-template-columns: 0px 1fr 380px;
-    }
-    .left-panel-wrapper.open {
-      min-width: 280px;
-    }
+    .app-shell { grid-template-columns: 280px 1fr 340px; }
+    .app-shell.left-collapsed { grid-template-columns: 0px 1fr 380px; }
+    .left-panel-wrapper.open { min-width: 280px; }
   }
 
-  /* ── Tablet (< 900px): hide left panel by default ───────────────────── */
   @media (max-width: 900px) {
-    .app-shell {
-      grid-template-columns: 0px 1fr 300px;
-    }
-    .app-shell.left-collapsed {
-      grid-template-columns: 0px 1fr 300px;
-    }
+    .app-shell { grid-template-columns: 0px 1fr 300px; }
+    .app-shell.left-collapsed { grid-template-columns: 0px 1fr 300px; }
 
-    /* Left panel becomes overlay */
     .left-panel-wrapper {
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       height: 100vh;
       width: 280px;
       z-index: 50;
@@ -289,23 +241,13 @@
     }
   }
 
-  /* ── Mobile (< 640px): full-screen map, panels as overlays ──────────── */
   @media (max-width: 640px) {
-    .app-shell {
-      grid-template-columns: 1fr;
-      grid-template-rows: 100vh;
-    }
+    .app-shell { grid-template-columns: 1fr; grid-template-rows: 100vh; }
+    .app-shell.left-collapsed { grid-template-columns: 1fr; }
 
-    .app-shell.left-collapsed {
-      grid-template-columns: 1fr;
-    }
-
-    /* Right panel becomes bottom sheet */
     .right-panel-wrapper {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       height: 70vh;
       z-index: 40;
       border-radius: 16px 16px 0 0;
@@ -314,11 +256,8 @@
       box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
     }
 
-    .right-panel-wrapper.mobile-open {
-      transform: translateY(0);
-    }
+    .right-panel-wrapper.mobile-open { transform: translateY(0); }
 
-    /* Mobile backdrop */
     .mobile-backdrop {
       display: block;
       position: fixed;
@@ -327,13 +266,8 @@
       background: rgba(0, 0, 0, 0.3);
     }
 
-    /* Show the "open brief" button on mobile */
     .mobile-only { display: flex; }
 
-    /* Left toggle always visible on mobile */
-    .panel-toggle-btn.left {
-      top: 12px;
-      left: 12px;
-    }
+    .panel-toggle-btn.left { top: 12px; left: 12px; }
   }
 </style>
