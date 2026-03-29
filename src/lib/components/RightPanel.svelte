@@ -42,7 +42,7 @@
     {
       icon: '⭐',
       label: "What's the local vibe?",
-      prompt: 'What is the social scene like here? Use the queryPlaceReviews tool to look up nearby cafes and describe the local vibe based on real reviews.',
+      prompt: 'What is the social scene like here? Describe the local vibe — nearby cafes, restaurants, and bars — and what kind of crowd lives in this area.',
     },
     {
       icon: '🔍',
@@ -55,8 +55,11 @@
 
   let employedPct = $derived(() => {
     const d = $brief?.demographics;
-    if (!d || !d.totalPopulation) return 0;
-    return Math.round((d.employment.employed / d.totalPopulation) * 100);
+    if (!d) return 0;
+    const empTotal = d.employment.employed + d.employment.unemployed +
+                     d.employment.outsideWorkforce + d.employment.students;
+    if (!empTotal) return 0;
+    return Math.round((d.employment.employed / empTotal) * 100);
   });
 
   let densityLabel = $derived(
@@ -212,10 +215,14 @@
       {/if}
 
     {:else if activeTab === 'insights'}
-      <InsightsPanel />
+      <div class="tab-scroll">
+        <InsightsPanel />
+      </div>
 
     {:else if activeTab === 'social'}
-      <SocialPanel data={socialData} isLoading={isSocialLoading} onRadiusApply={handleRadiusApply} />
+      <div class="tab-scroll">
+        <SocialPanel data={socialData} isLoading={isSocialLoading} onRadiusApply={handleRadiusApply} />
+      </div>
     {/if}
   </div>
 </aside>
@@ -345,6 +352,14 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+  }
+
+  /* Metrics / Social tabs — scrollable wrapper */
+  .tab-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-bottom: 8px;
   }
 
   /* Chat thread — scrollable, grows to fill space */

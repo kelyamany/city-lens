@@ -37,6 +37,8 @@ export function resolveDistrict(postalCode: string): Demographics | null {
     }
   }
 
+  const incomeRaw = bydelData.income;
+
   return {
     medianAge: subDistrictData?.medianAge ?? 35,
     totalPopulation: bydelData.population?.total ?? 0,
@@ -50,5 +52,6 @@ export function resolveDistrict(postalCode: string): Demographics | null {
       primaryOnly: 0, highSchool: 0, vocational: 0,
       shortHigher: 0, mediumHigher: 0, longHigher: 0,
     },
+    ...(incomeRaw ? { income: incomeRaw } : {}),
   };
 }

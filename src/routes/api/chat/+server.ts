@@ -60,6 +60,10 @@ function buildSystemPrompt(context: any, placeContext = ''): string {
       acc[p.type] = (acc[p.type] ?? 0) + 1; return acc;
     }, {});
 
+    const incPart = d.income?.avgEarnedIncomeDKK
+      ? `\n- Avg. earned income: ${Math.round(d.income.avgEarnedIncomeDKK / 1000)}k DKK/worker, avg. disposable: ${Math.round(d.income.avgDisposableIncomeDKK / 1000)}k DKK/earner`
+      : '';
+
     demoPart = `
 DEMOGRAPHICS (${context.neighbourhood ?? 'district'}):
 - Total population: ${totalPop.toLocaleString()}
@@ -68,7 +72,7 @@ DEMOGRAPHICS (${context.neighbourhood ?? 'district'}):
 - Employment: ${pct(d.employment?.employed)}% employed, ${pct(d.employment?.unemployed)}% unemployed
 - Higher education: ${higherEdPct}% have medium or long higher education
 - Background: ${pct(d.background?.danish)}% Danish, ${pct(d.background?.western)}% Western, ${pct(d.background?.nonWestern)}% Non-Western
-- Marital: ${pct(d.maritalStatus?.single)}% single, ${pct(d.maritalStatus?.married)}% married
+- Marital: ${pct(d.maritalStatus?.single)}% single, ${pct(d.maritalStatus?.married)}% married${incPart}
 
 NEARBY FACILITIES within ${context.radius ?? 500}m (OpenStreetMap):
 ${Object.keys(poiSummary).length > 0 ? Object.entries(poiSummary).map(([k, v]) => `  ${k}: ${v}`).join('\n') : '  None found'}`;
@@ -118,10 +122,11 @@ export async function POST({ request }) {
       maxSteps: 3,
     });
 
-    const content =
-      result.text ||
-      result.steps.map((s: any) => s.text as string).filter((t) => t?.trim()).at(-1) ||
-      'I could not generate a response. Please try rephrasing.';
+    const stepTexts = result.steps.map((s: any) => s.text as string).filter((t) => t?.trim());
+    if (!result.text && stepTexts.length === 0) {
+      console.warn('[chat] Empty response — finishReason:', result.finishReason, '| steps:', result.steps.length, '| toolCalls:', result.steps.flatMap((s: any) => s.toolCalls ?? []).map((tc: any) => tc.toolName));
+    }
+    const content = result.text || stepTexts.at(-1) || 'I could not generate a response. Please try rephrasing.';
 
     return json({ content, steps: result.steps });
   } catch (e) {

@@ -15,6 +15,11 @@ export interface Demographics {
     mediumHigher: number;
     longHigher: number;
   };
+  /** Average income per person at bydel level (source: KK incomes dataset, 2024) */
+  income?: {
+    avgEarnedIncomeDKK: number;    // avg earned/business income for workers (DKK)
+    avgDisposableIncomeDKK: number; // avg disposable income per earner (DKK)
+  };
 }
 
 export interface POI {

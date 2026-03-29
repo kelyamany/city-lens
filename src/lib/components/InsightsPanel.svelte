@@ -185,6 +185,26 @@
       </div>
     </section>
 
+    {#if demographics.income?.avgEarnedIncomeDKK}
+    {@const avgEarned = Math.round(demographics.income.avgEarnedIncomeDKK / 1000)}
+    {@const avgDisp = Math.round(demographics.income.avgDisposableIncomeDKK / 1000)}
+    <section>
+      <h4 class="section-title">Income (avg. per person, 2024)</h4>
+      <div class="stat-grid">
+        <div class="mini-stat">
+          <p class="mini-label">Earned Income</p>
+          <p class="mini-value accent">{avgEarned}k</p>
+          <p class="mini-sub">DKK / worker</p>
+        </div>
+        <div class="mini-stat">
+          <p class="mini-label">Disposable</p>
+          <p class="mini-value">{avgDisp}k</p>
+          <p class="mini-sub">DKK / earner</p>
+        </div>
+      </div>
+    </section>
+    {/if}
+
     <section>
       <h4 class="section-title">Household Status</h4>
       <div class="stacked-bar">

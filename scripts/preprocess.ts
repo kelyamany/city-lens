@@ -332,6 +332,52 @@ console.log('Parsing employment...');
 }
 
 // ================================================================
+// FILE 6: incomes_genders_districts.csv (semicolon-delimited)
+// ================================================================
+// The CSV has 3 sections distinguished by column 2 (income group):
+//   Section 1 ("All people with incomes")  → count of people
+//   Section 2 ("Income amount (1,000 DKK)") → total income in thousands DKK
+//   Section 3 ("Average for all persons with the income (DKK)") → average income per person
+// We extract Section 3 only: average earned income and average disposable income.
+console.log('Parsing income data...');
+{
+  const lines = readFile('incomes_genders_districts.csv').split('\n');
+  // Format: {year};{incomeGroup};{incomeType};{district};{total};{male};{female}
+  // Columns are sparse (carry-forward from previous non-empty value)
+  let currentGroup = '';
+  let currentType = '';
+
+  for (let i = 3; i < lines.length; i++) {
+    const parts = lines[i].split(';');
+    if (parts.length < 7) continue;
+
+    const group = parts[1].trim() || currentGroup;
+    const incomeType = parts[2].trim() || currentType;
+    const district = parts[3].trim();
+    const total = num(parts[4]);
+
+    if (parts[1].trim()) currentGroup = parts[1].trim();
+    if (parts[2].trim()) currentType = parts[2].trim();
+
+    // Only extract Section 3: average income per person
+    if (!group.startsWith('Average for all persons')) continue;
+    if (!district.startsWith('Bydel - ')) continue;
+
+    const key = district.replace('Bydel - ', '');
+    ensureBydel(key);
+
+    bydel[key].income = bydel[key].income ?? {};
+
+    if (incomeType === 'Business income/Earned income') {
+      bydel[key].income.avgEarnedIncomeDKK = total;
+    } else if (incomeType.startsWith('Dispons')) {
+      // "Disponsible income" (typo in source data)
+      bydel[key].income.avgDisposableIncomeDKK = total;
+    }
+  }
+}
+
+// ================================================================
 // OUTPUT
 // ================================================================
 

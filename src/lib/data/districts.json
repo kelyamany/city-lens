@@ -22,6 +22,10 @@
         "unemployed": 901,
         "outsideWorkforce": 22455,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 512772,
+        "avgDisposableIncomeDKK": 389913
       }
     },
     "Østerbro": {
@@ -46,6 +50,10 @@
         "unemployed": 1264,
         "outsideWorkforce": 31327,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 486832,
+        "avgDisposableIncomeDKK": 343403
       }
     },
     "Nørrebro": {
@@ -70,6 +78,10 @@
         "unemployed": 1873,
         "outsideWorkforce": 29448,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 358833,
+        "avgDisposableIncomeDKK": 253793
       }
     },
     "Vesterbro/Kongens Enghave": {
@@ -94,6 +106,10 @@
         "unemployed": 1648,
         "outsideWorkforce": 28659,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 449113,
+        "avgDisposableIncomeDKK": 305993
       }
     },
     "Valby": {
@@ -118,6 +134,10 @@
         "unemployed": 1185,
         "outsideWorkforce": 25484,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 408158,
+        "avgDisposableIncomeDKK": 287217
       }
     },
     "Vanløse": {
@@ -142,6 +162,10 @@
         "unemployed": 599,
         "outsideWorkforce": 16203,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 429366,
+        "avgDisposableIncomeDKK": 303034
       }
     },
     "Brønshøj-Husum": {
@@ -166,6 +190,10 @@
         "unemployed": 754,
         "outsideWorkforce": 20899,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 398683,
+        "avgDisposableIncomeDKK": 277840
       }
     },
     "Bispebjerg": {
@@ -190,6 +218,10 @@
         "unemployed": 1369,
         "outsideWorkforce": 22249,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 354720,
+        "avgDisposableIncomeDKK": 248618
       }
     },
     "Amager Øst": {
@@ -214,6 +246,10 @@
         "unemployed": 1112,
         "outsideWorkforce": 23459,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 417236,
+        "avgDisposableIncomeDKK": 292953
       }
     },
     "Amager Vest": {
@@ -238,6 +274,10 @@
         "unemployed": 1385,
         "outsideWorkforce": 35287,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 437865,
+        "avgDisposableIncomeDKK": 300408
       }
     },
     "Uden for inddeling": {
@@ -262,6 +302,10 @@
         "unemployed": 0,
         "outsideWorkforce": 0,
         "students": 0
+      },
+      "income": {
+        "avgEarnedIncomeDKK": 290246,
+        "avgDisposableIncomeDKK": 159699
       }
     }
   },
