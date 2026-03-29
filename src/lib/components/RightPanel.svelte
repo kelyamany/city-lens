@@ -46,14 +46,14 @@
       class:active={activeTab === 'brief'}
       onclick={() => (activeTab = 'brief')}
     >
-      AI Brief
+      Insights
     </button>
     <button
       class="tab"
       class:active={activeTab === 'insights'}
       onclick={() => (activeTab = 'insights')}
     >
-      Insights
+      Metrics
     </button>
   </div>
 

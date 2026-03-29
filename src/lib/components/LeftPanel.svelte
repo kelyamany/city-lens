@@ -61,7 +61,7 @@
         <Search size={16} />
         <input
           type="text"
-          placeholder="Enter an address in Copenhagen..."
+          placeholder="Enter an address ..."
           bind:value={query}
           oninput={handleInput}
           onkeydown={handleKeydown}
@@ -88,7 +88,7 @@
   </div>
 
   <footer class="panel-footer">
-    <p>POWERED BY DST &middot; OSM &middot; AIRBNB</p>
+    <p>AEC Hackathon - Copenhagen 2026</p>
   </footer>
 </aside>
 
