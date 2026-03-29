@@ -68,7 +68,7 @@
       });
 
       const data = await res.json();
-      chatMessages = [...chatMessages, { role: 'assistant', content: data.content ?? 'No response.' }];
+      chatMessages = [...chatMessages, { role: 'assistant', content: data.content || 'No response received. Please try again.' }];
 
       // Handle setRadius tool result
       for (const step of data.steps ?? []) {

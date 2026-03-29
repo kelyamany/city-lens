@@ -128,10 +128,20 @@ export async function POST({ request }) {
           },
         }),
       },
-      maxSteps: 3,
+      maxSteps: 5,
     });
 
-    return json({ content: result.text, steps: result.steps });
+    // Collect text from all steps — when tools are called, the final text
+    // may be in an earlier step if maxSteps runs out before a new text step.
+    const content =
+      result.text ||
+      result.steps
+        .map((s: any) => s.text as string)
+        .filter((t) => t?.trim())
+        .at(-1) ||
+      'I processed your request but could not generate a text response. Please try rephrasing.';
+
+    return json({ content, steps: result.steps });
   } catch (e) {
     console.error('Chat error:', e);
     return json({ content: 'Sorry, I could not process that request. Please try again.' });

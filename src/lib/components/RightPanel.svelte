@@ -42,7 +42,7 @@
     {
       icon: '⭐',
       label: "What's the local vibe?",
-      prompt: 'What is the social scene like here? Look up nearby cafes, restaurants, or bars using Google Maps and describe the local vibe based on real reviews.',
+      prompt: 'What is the social scene like here? Use the queryPlaceReviews tool to look up nearby cafes and describe the local vibe based on real reviews.',
     },
     {
       icon: '🔍',
