@@ -164,49 +164,52 @@
           </div>
         {/if}
 
-        <!-- Chat thread -->
-        {#if chatMessages.length > 0}
-          <div class="chat-thread" bind:this={chatThread}>
-            {#each chatMessages as msg}
-              <div class="chat-msg {msg.role}">
-                {#if msg.role === 'assistant'}
-                  <div class="md">{@html marked.parse(msg.content)}</div>
-                {:else}
-                  <p>{msg.content}</p>
-                {/if}
-              </div>
-            {/each}
-
-            {#if isChatLoading}
-              <div class="chat-msg assistant thinking">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-              </div>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- Suggestion chips (shown before first message) -->
-        {#if showChips}
-          <div class="chips-section">
-            <p class="chips-label">Ask the AI about this area</p>
-            <div class="chips-list">
-              {#each CHIPS as chip}
-                <button
-                  class="chip"
-                  onclick={() => sendChip(chip.prompt)}
-                  disabled={isChatLoading}
-                >
-                  <span class="chip-icon">{chip.icon}</span>
-                  <span class="chip-text">{chip.label}</span>
-                </button>
+        <!-- Scrollable middle area: chat or chips -->
+        <div class="scroll-area">
+          <!-- Chat thread -->
+          {#if chatMessages.length > 0}
+            <div class="chat-thread" bind:this={chatThread}>
+              {#each chatMessages as msg}
+                <div class="chat-msg {msg.role}">
+                  {#if msg.role === 'assistant'}
+                    <div class="md">{@html marked.parse(msg.content)}</div>
+                  {:else}
+                    <p>{msg.content}</p>
+                  {/if}
+                </div>
               {/each}
-            </div>
-          </div>
-        {/if}
 
-        <!-- Chat input (shown once location is selected) -->
+              {#if isChatLoading}
+                <div class="chat-msg assistant thinking">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          <!-- Suggestion chips (shown before first message) -->
+          {#if showChips}
+            <div class="chips-section">
+              <p class="chips-label">Ask the AI about this area</p>
+              <div class="chips-list">
+                {#each CHIPS as chip}
+                  <button
+                    class="chip"
+                    onclick={() => sendChip(chip.prompt)}
+                    disabled={isChatLoading}
+                  >
+                    <span class="chip-icon">{chip.icon}</span>
+                    <span class="chip-text">{chip.label}</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Chat input pinned at bottom -->
         {#if $brief || $isAnalyzing}
           <div class="chat-input-wrap">
             <ChatInput onSubmit={onChatSubmit} disabled={isChatLoading || $isAnalyzing} />
@@ -297,6 +300,7 @@
     padding: 0 20px 16px;
     min-height: 0;
     overflow: hidden;
+    position: relative;
   }
 
   /* Empty state */
@@ -362,15 +366,23 @@
     padding-bottom: 8px;
   }
 
-  /* Chat thread — scrollable, grows to fill space */
-  .chat-thread {
+  /* Scrollable middle area — grows between stat cards and input */
+  .scroll-area {
     flex: 1;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Chat thread fills the scroll area */
+  .chat-thread {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding-bottom: 8px;
-    min-height: 0;
   }
 
   .chat-msg {
@@ -433,7 +445,6 @@
 
   /* Suggestion chips */
   .chips-section {
-    flex-shrink: 0;
     margin-top: 4px;
     margin-bottom: 4px;
   }
