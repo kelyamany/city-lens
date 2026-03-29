@@ -1,12 +1,37 @@
 import type { Demographics } from '$lib/types';
 import { postalLookup, districtsData } from '$lib/data';
 
+/**
+ * Fallback: map inner-city Copenhagen postal codes (1000-1799) to bydel/lokaludvalg
+ * by numeric range. These codes are too granular to enumerate individually in postalLookup.
+ */
+function inferLookup(postalCode: string): { bydel: string; lokaludvalg: string } | null {
+  const n = parseInt(postalCode, 10);
+  if (isNaN(n)) return null;
+  // Christianshavn: 1100-1199, 1400-1499
+  if ((n >= 1100 && n <= 1199) || (n >= 1400 && n <= 1499)) {
+    return { bydel: 'Indre By', lokaludvalg: 'Christianshavn' };
+  }
+  // Vesterbro: 1500-1799
+  if (n >= 1500 && n <= 1799) {
+    return { bydel: 'Vesterbro/Kongens Enghave', lokaludvalg: 'Vesterbro' };
+  }
+  // Inner city: 1000-1399
+  if (n >= 1000 && n <= 1399) {
+    return { bydel: 'Indre By', lokaludvalg: 'inner city' };
+  }
+  return null;
+}
+
 export function resolveDistrictName(postalCode: string): string | null {
-  return (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]?.bydel ?? null;
+  const entry = (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]
+    ?? inferLookup(postalCode);
+  return entry?.bydel ?? null;
 }
 
 export function resolveDistrict(postalCode: string): Demographics | null {
-  const lookup = postalLookup[postalCode];
+  const lookup = (postalLookup as Record<string, { bydel: string; lokaludvalg: string }>)[postalCode]
+    ?? inferLookup(postalCode);
   if (!lookup) return null;
 
   const bydelData = districtsData.bydel[lookup.bydel];
