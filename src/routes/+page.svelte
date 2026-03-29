@@ -179,8 +179,9 @@
     transition: grid-template-columns 0.25s ease;
   }
 
+  /* Slightly wider right panel when sidebar is collapsed */
   .app-shell.left-collapsed {
-    grid-template-columns: 0px 1fr 380px;
+    grid-template-columns: 0px 1fr 420px;
   }
 
   .left-panel-wrapper {
@@ -269,7 +270,7 @@
       grid-template-columns: 280px 1fr 340px;
     }
     .app-shell.left-collapsed {
-      grid-template-columns: 0px 1fr 340px;
+      grid-template-columns: 0px 1fr 380px;
     }
     .left-panel-wrapper.open {
       min-width: 280px;

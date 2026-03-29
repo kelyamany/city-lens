@@ -95,24 +95,26 @@
       Average Google Maps ratings for nearby places within {$analysisRadius}m.
     </p>
 
-    <div class="categories-grid">
+    <div class="categories-list">
       {#each categoriesWithData as cat}
         {@const s = stars(cat.avgRating)}
         <div class="category-card">
-          <div class="card-header">
-            <span class="cat-label">{cat.label}</span>
-            <span class="cat-count">{cat.count} place{cat.count !== 1 ? 's' : ''}</span>
-          </div>
-
-          <div class="rating-row">
-            <span class="rating-num" style="color: {ratingColor(cat.avgRating)}">
-              {cat.avgRating > 0 ? cat.avgRating.toFixed(1) : '—'}
-            </span>
-            <span class="stars" aria-label="{cat.avgRating.toFixed(1)} out of 5 stars">
-              {#each Array(s.full) as _}<span class="star full">★</span>{/each}
-              {#if s.half}<span class="star half">★</span>{/if}
-              {#each Array(s.empty) as _}<span class="star empty">★</span>{/each}
-            </span>
+          <!-- Header row: label + count + big rating + stars -->
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="cat-label">{cat.label}</span>
+              <span class="cat-count">{cat.count} place{cat.count !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="rating-cluster">
+              <span class="rating-num" style="color: {ratingColor(cat.avgRating)}">
+                {cat.avgRating > 0 ? cat.avgRating.toFixed(1) : '—'}
+              </span>
+              <span class="stars" aria-label="{cat.avgRating.toFixed(1)} out of 5 stars">
+                {#each Array(s.full) as _}<span class="star full">★</span>{/each}
+                {#if s.half}<span class="star half">★</span>{/if}
+                {#each Array(s.empty) as _}<span class="star empty">★</span>{/each}
+              </span>
+            </div>
           </div>
 
           {#if cat.topPlaces.length > 0}
@@ -204,9 +206,9 @@
 
   /* Loading skeleton */
   .loading-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .skeleton-card {
@@ -264,50 +266,63 @@
     font-size: 10px;
   }
 
-  /* Category grid */
-  .categories-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+  /* Category list (single column) */
+  .categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .category-card {
     background: #f9fafb;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: 12px 14px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
-  .card-header {
+  /* Top row: left=label+count, right=rating+stars */
+  .card-top {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 8px;
+  }
+
+  .card-meta {
+    display: flex;
     align-items: baseline;
+    gap: 8px;
+    min-width: 0;
   }
 
   .cat-label {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--color-text-muted);
+    letter-spacing: 0.6px;
+    color: var(--color-text);
+    white-space: nowrap;
   }
 
   .cat-count {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  .rating-row {
+  .rating-cluster {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .rating-num {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     line-height: 1;
   }
@@ -317,30 +332,29 @@
     gap: 1px;
   }
 
-  .star        { font-size: 13px; }
+  .star        { font-size: 12px; }
   .star.full   { color: #f59e0b; }
-  .star.half   { color: #f59e0b; opacity: 0.6; }
+  .star.half   { color: #f59e0b; opacity: 0.55; }
   .star.empty  { color: #d1d5db; }
 
   .top-places {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     border-top: 1px solid var(--color-border);
-    padding-top: 6px;
-    margin-top: 2px;
+    padding-top: 8px;
   }
 
   .place-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
   }
 
   .place-name {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--color-text);
     white-space: nowrap;
     overflow: hidden;
@@ -349,7 +363,7 @@
   }
 
   .place-rating {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     flex-shrink: 0;
   }
