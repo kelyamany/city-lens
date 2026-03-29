@@ -3,14 +3,15 @@ import { env } from '$env/dynamic/private';
 import type { SocialCategory } from '$lib/types';
 
 const CATEGORIES = [
-  { type: 'cafe', label: 'Cafes' },
-  { type: 'restaurant', label: 'Restaurants' },
-  { type: 'bar', label: 'Bars' },
-  { type: 'park', label: 'Parks' },
-  { type: 'gym', label: 'Gyms' },
+  { type: 'hospital', label: 'Healthcare' },
+  { type: 'school', label: 'Schools' },
+  { type: 'university', label: 'Universities' },
+  { type: 'park', label: 'Parks & Green Space' },
+  { type: 'transit_station', label: 'Public Transit' },
   { type: 'library', label: 'Libraries' },
-  { type: 'museum', label: 'Museums' },
-  { type: 'supermarket', label: 'Supermarkets' },
+  { type: 'supermarket', label: 'Food Access' },
+  { type: 'gym', label: 'Sports & Recreation' },
+  { type: 'pharmacy', label: 'Pharmacies' },
 ];
 
 export async function POST({ request }) {
