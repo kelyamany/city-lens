@@ -1,7 +1,11 @@
 <script lang="ts">
   import { selectedLocation } from '$lib/stores/map';
   import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
+  import { layers } from '$lib/stores/layers';
   import type { Demographics } from '$lib/types';
+
+  let showDemo   = $derived($layers.find(l => l.id === 'demographics')?.active ?? true);
+  let showIncome = $derived($layers.find(l => l.id === 'income')?.active ?? true);
 
   let demographics = $derived.by(() => {
     const loc = $selectedLocation;
@@ -85,145 +89,155 @@
       </div>
     {/if}
 
-    <section>
-      <h4 class="section-title">Population Overview</h4>
-      <div class="stat-row-3">
-        <div class="mini-stat">
-          <p class="mini-label">Total</p>
-          <p class="mini-value">{totalPop.toLocaleString()}</p>
-        </div>
-        <div class="mini-stat">
-          <p class="mini-label">Gender</p>
-          <p class="mini-value">{malePct}% / {femalePct}%</p>
-          <p class="mini-sub">M / F</p>
-        </div>
-        <div class="mini-stat">
-          <p class="mini-label">Median Age</p>
-          <p class="mini-value">{demographics.medianAge}</p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h4 class="section-title">Background & Diversity</h4>
-      <div class="stacked-bar">
-        <div class="bar-segment danish" style="width: {danishPct}%">{danishPct}%</div>
-        <div class="bar-segment western" style="width: {westernPct}%">{westernPct > 4 ? westernPct + '%' : ''}</div>
-        <div class="bar-segment non-western" style="width: {nonWesternPct}%">{nonWesternPct > 4 ? nonWesternPct + '%' : ''}</div>
-      </div>
-      <div class="legend">
-        <span class="legend-item"><span class="dot danish"></span> Danish</span>
-        <span class="legend-item"><span class="dot western"></span> Western</span>
-        <span class="legend-item"><span class="dot non-western"></span> Non-Western</span>
-      </div>
-    </section>
-
-    <section>
-      <h4 class="section-title">Age Distribution</h4>
-      <div class="pyramid-header">
-        <span class="pyramid-axis-label">← younger</span>
-        <span></span>
-        <span class="pyramid-axis-label">older →</span>
-        <span></span>
-      </div>
-      <div class="pyramid">
-        {#each ageBuckets.slice().reverse() as [label, count]}
-          {@const barPct = (count / maxAge) * 100}
-          {@const popPct = totalPop > 0 ? ((count / totalPop) * 100).toFixed(1) : '0.0'}
-          <div class="pyramid-row">
-            <div class="pyramid-side left">
-              <div class="pyramid-bar" style="width: {barPct / 2}%"></div>
-            </div>
-            <span class="pyramid-label">{label}</span>
-            <div class="pyramid-side right">
-              <div class="pyramid-bar" style="width: {barPct / 2}%"></div>
-            </div>
-            <span class="pyramid-pct">{popPct}%</span>
+    {#if showDemo}
+      <section>
+        <h4 class="section-title">Population Overview</h4>
+        <div class="stat-row-3">
+          <div class="mini-stat">
+            <p class="mini-label">Total</p>
+            <p class="mini-value">{totalPop.toLocaleString()}</p>
           </div>
-        {/each}
-      </div>
-    </section>
-
-    <section>
-      <h4 class="section-title">Education Level</h4>
-      <div class="bar-chart">
-        {#each eduEntries as [label, count], i}
-          {@const pctVal = eduTotal > 0 ? (count / eduTotal) * 100 : 0}
-          <div class="bar-row">
-            <span class="bar-label">{label}</span>
-            <div class="bar-track">
-              <div
-                class="bar-fill edu"
-                style="width: {pctVal}%; opacity: {0.45 + (i / eduEntries.length) * 0.55}"
-              ></div>
-            </div>
-            <span class="bar-count">{pctVal.toFixed(1)}%</span>
+          <div class="mini-stat">
+            <p class="mini-label">Gender</p>
+            <p class="mini-value">{malePct}% / {femalePct}%</p>
+            <p class="mini-sub">M / F</p>
           </div>
-        {/each}
-      </div>
-    </section>
+          <div class="mini-stat">
+            <p class="mini-label">Median Age</p>
+            <p class="mini-value">{demographics.medianAge}</p>
+          </div>
+        </div>
+      </section>
 
-    <section>
-      <h4 class="section-title">Employment Status</h4>
-      <div class="stat-grid">
-        <div class="mini-stat">
-          <p class="mini-label">Employed</p>
-          <p class="mini-value accent">{pct(demographics.employment.employed, empTotal)}%</p>
+      <section>
+        <h4 class="section-title">Background & Diversity</h4>
+        <div class="stacked-bar">
+          <div class="bar-segment danish" style="width: {danishPct}%">{danishPct}%</div>
+          <div class="bar-segment western" style="width: {westernPct}%">{westernPct > 4 ? westernPct + '%' : ''}</div>
+          <div class="bar-segment non-western" style="width: {nonWesternPct}%">{nonWesternPct > 4 ? nonWesternPct + '%' : ''}</div>
         </div>
-        <div class="mini-stat">
-          <p class="mini-label">Unemployed</p>
-          <p class="mini-value">{pct(demographics.employment.unemployed, empTotal)}%</p>
+        <div class="legend">
+          <span class="legend-item"><span class="dot danish"></span> Danish</span>
+          <span class="legend-item"><span class="dot western"></span> Western</span>
+          <span class="legend-item"><span class="dot non-western"></span> Non-Western</span>
         </div>
-        <div class="mini-stat">
-          <p class="mini-label">Students</p>
-          <p class="mini-value">{pct(demographics.employment.students, empTotal)}%</p>
-        </div>
-        <div class="mini-stat">
-          <p class="mini-label">Outside WF</p>
-          <p class="mini-value">{pct(demographics.employment.outsideWorkforce, empTotal)}%</p>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    {#if demographics.income?.avgEarnedIncomeDKK}
-    {@const avgEarned = Math.round(demographics.income.avgEarnedIncomeDKK / 1000)}
-    {@const avgDisp = Math.round(demographics.income.avgDisposableIncomeDKK / 1000)}
-    <section>
-      <h4 class="section-title">Income (avg. per person, 2024)</h4>
-      <div class="stat-grid">
-        <div class="mini-stat">
-          <p class="mini-label">Earned Income</p>
-          <p class="mini-value accent">{avgEarned}k</p>
-          <p class="mini-sub">DKK / worker</p>
+      <section>
+        <h4 class="section-title">Age Distribution</h4>
+        <div class="pyramid-header">
+          <span class="pyramid-axis-label">← younger</span>
+          <span></span>
+          <span class="pyramid-axis-label">older →</span>
+          <span></span>
         </div>
-        <div class="mini-stat">
-          <p class="mini-label">Disposable</p>
-          <p class="mini-value">{avgDisp}k</p>
-          <p class="mini-sub">DKK / earner</p>
+        <div class="pyramid">
+          {#each ageBuckets.slice().reverse() as [label, count]}
+            {@const barPct = (count / maxAge) * 100}
+            {@const popPct = totalPop > 0 ? ((count / totalPop) * 100).toFixed(1) : '0.0'}
+            <div class="pyramid-row">
+              <div class="pyramid-side left">
+                <div class="pyramid-bar" style="width: {barPct / 2}%"></div>
+              </div>
+              <span class="pyramid-label">{label}</span>
+              <div class="pyramid-side right">
+                <div class="pyramid-bar" style="width: {barPct / 2}%"></div>
+              </div>
+              <span class="pyramid-pct">{popPct}%</span>
+            </div>
+          {/each}
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section>
+        <h4 class="section-title">Employment Status</h4>
+        <div class="stat-grid">
+          <div class="mini-stat">
+            <p class="mini-label">Employed</p>
+            <p class="mini-value accent">{pct(demographics.employment.employed, empTotal)}%</p>
+          </div>
+          <div class="mini-stat">
+            <p class="mini-label">Unemployed</p>
+            <p class="mini-value">{pct(demographics.employment.unemployed, empTotal)}%</p>
+          </div>
+          <div class="mini-stat">
+            <p class="mini-label">Students</p>
+            <p class="mini-value">{pct(demographics.employment.students, empTotal)}%</p>
+          </div>
+          <div class="mini-stat">
+            <p class="mini-label">Outside WF</p>
+            <p class="mini-value">{pct(demographics.employment.outsideWorkforce, empTotal)}%</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h4 class="section-title">Household Status</h4>
+        <div class="stacked-bar">
+          <div class="bar-segment single" style="width: {pct(demographics.maritalStatus.single, maritalTotal)}%">
+            {parseInt(pct(demographics.maritalStatus.single, maritalTotal)) > 10 ? pct(demographics.maritalStatus.single, maritalTotal) + '%' : ''}
+          </div>
+          <div class="bar-segment married" style="width: {pct(demographics.maritalStatus.married, maritalTotal)}%">
+            {parseInt(pct(demographics.maritalStatus.married, maritalTotal)) > 10 ? pct(demographics.maritalStatus.married, maritalTotal) + '%' : ''}
+          </div>
+          <div class="bar-segment divorced" style="width: {pct(demographics.maritalStatus.divorced, maritalTotal)}%"></div>
+          <div class="bar-segment widowed" style="width: {pct(demographics.maritalStatus.widowed, maritalTotal)}%"></div>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot single"></span> Single {pct(demographics.maritalStatus.single, maritalTotal)}%</span>
+          <span class="legend-item"><span class="dot married"></span> Married {pct(demographics.maritalStatus.married, maritalTotal)}%</span>
+          <span class="legend-item"><span class="dot divorced"></span> Divorced {pct(demographics.maritalStatus.divorced, maritalTotal)}%</span>
+          <span class="legend-item"><span class="dot widowed"></span> Widowed {pct(demographics.maritalStatus.widowed, maritalTotal)}%</span>
+        </div>
+      </section>
     {/if}
 
-    <section>
-      <h4 class="section-title">Household Status</h4>
-      <div class="stacked-bar">
-        <div class="bar-segment single" style="width: {pct(demographics.maritalStatus.single, maritalTotal)}%">
-          {parseInt(pct(demographics.maritalStatus.single, maritalTotal)) > 10 ? pct(demographics.maritalStatus.single, maritalTotal) + '%' : ''}
+    {#if showIncome}
+      <section>
+        <h4 class="section-title">Education Level</h4>
+        <div class="bar-chart">
+          {#each eduEntries as [label, count], i}
+            {@const pctVal = eduTotal > 0 ? (count / eduTotal) * 100 : 0}
+            <div class="bar-row">
+              <span class="bar-label">{label}</span>
+              <div class="bar-track">
+                <div
+                  class="bar-fill edu"
+                  style="width: {pctVal}%; opacity: {0.45 + (i / eduEntries.length) * 0.55}"
+                ></div>
+              </div>
+              <span class="bar-count">{pctVal.toFixed(1)}%</span>
+            </div>
+          {/each}
         </div>
-        <div class="bar-segment married" style="width: {pct(demographics.maritalStatus.married, maritalTotal)}%">
-          {parseInt(pct(demographics.maritalStatus.married, maritalTotal)) > 10 ? pct(demographics.maritalStatus.married, maritalTotal) + '%' : ''}
+      </section>
+
+      {#if demographics.income?.avgEarnedIncomeDKK}
+      {@const avgEarned = Math.round(demographics.income.avgEarnedIncomeDKK / 1000)}
+      {@const avgDisp = Math.round(demographics.income.avgDisposableIncomeDKK / 1000)}
+      <section>
+        <h4 class="section-title">Income (avg. per person, 2024)</h4>
+        <div class="stat-grid">
+          <div class="mini-stat">
+            <p class="mini-label">Earned Income</p>
+            <p class="mini-value accent">{avgEarned}k</p>
+            <p class="mini-sub">DKK / worker</p>
+          </div>
+          <div class="mini-stat">
+            <p class="mini-label">Disposable</p>
+            <p class="mini-value">{avgDisp}k</p>
+            <p class="mini-sub">DKK / earner</p>
+          </div>
         </div>
-        <div class="bar-segment divorced" style="width: {pct(demographics.maritalStatus.divorced, maritalTotal)}%"></div>
-        <div class="bar-segment widowed" style="width: {pct(demographics.maritalStatus.widowed, maritalTotal)}%"></div>
+      </section>
+      {/if}
+    {/if}
+
+    {#if !showDemo && !showIncome}
+      <div class="empty">
+        <p>All data layers are hidden.<br>Enable a layer in the left panel to see metrics.</p>
       </div>
-      <div class="legend">
-        <span class="legend-item"><span class="dot single"></span> Single {pct(demographics.maritalStatus.single, maritalTotal)}%</span>
-        <span class="legend-item"><span class="dot married"></span> Married {pct(demographics.maritalStatus.married, maritalTotal)}%</span>
-        <span class="legend-item"><span class="dot divorced"></span> Divorced {pct(demographics.maritalStatus.divorced, maritalTotal)}%</span>
-        <span class="legend-item"><span class="dot widowed"></span> Widowed {pct(demographics.maritalStatus.widowed, maritalTotal)}%</span>
-      </div>
-    </section>
+    {/if}
   </div>
 {:else}
   <div class="empty">

@@ -4,6 +4,7 @@
   import RightPanel from '$lib/components/RightPanel.svelte';
   import { selectedLocation, isAnalyzing, analysisRadius } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
+  import { layers } from '$lib/stores/layers';
   import type { ChatMessage } from '$lib/types';
 
   let mapRef: MapView | undefined = $state();
@@ -62,7 +63,32 @@
             address: loc?.address,
             neighbourhood: loc?.neighbourhood,
             radius: $analysisRadius,
-            brief: $brief ?? null,
+            brief: (() => {
+              if (!$brief) return null;
+              const demoOn   = $layers.find(l => l.id === 'demographics')?.active ?? true;
+              const incomeOn = $layers.find(l => l.id === 'income')?.active ?? true;
+              const dem = $brief.demographics;
+              return {
+                neighbourhood: $brief.neighbourhood,
+                city: $brief.city,
+                pois: $brief.pois,
+                demographics: {
+                  ...(demoOn ? {
+                    totalPopulation: dem.totalPopulation,
+                    male: dem.male,
+                    female: dem.female,
+                    medianAge: dem.medianAge,
+                    background: dem.background,
+                    maritalStatus: dem.maritalStatus,
+                    employment: dem.employment,
+                  } : {}),
+                  ...(incomeOn ? {
+                    education: dem.education,
+                    income: dem.income,
+                  } : {}),
+                },
+              };
+            })(),
           },
         }),
       });

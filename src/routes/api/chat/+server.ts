@@ -60,19 +60,29 @@ function buildSystemPrompt(context: any, placeContext = ''): string {
       acc[p.type] = (acc[p.type] ?? 0) + 1; return acc;
     }, {});
 
-    const incPart = d.income?.avgEarnedIncomeDKK
-      ? `\n- Avg. earned income: ${Math.round(d.income.avgEarnedIncomeDKK / 1000)}k DKK/worker, avg. disposable: ${Math.round(d.income.avgDisposableIncomeDKK / 1000)}k DKK/earner`
-      : '';
+    const lines: string[] = [];
+    if (d.totalPopulation) {
+      lines.push(`- Total population: ${totalPop.toLocaleString()}, Median age: ${d.medianAge ?? '?'} yrs, Gender: ${pct(d.male)}% M / ${pct(d.female)}% F`);
+    }
+    if (d.employment) {
+      lines.push(`- Employment: ${pct(d.employment.employed)}% employed, ${pct(d.employment.unemployed)}% unemployed`);
+    }
+    if (d.background) {
+      lines.push(`- Background: ${pct(d.background.danish)}% Danish, ${pct(d.background.western)}% Western, ${pct(d.background.nonWestern)}% Non-Western`);
+    }
+    if (d.maritalStatus) {
+      lines.push(`- Marital: ${pct(d.maritalStatus.single)}% single, ${pct(d.maritalStatus.married)}% married`);
+    }
+    if (d.education) {
+      lines.push(`- Higher education: ${higherEdPct}% have medium or long higher education`);
+    }
+    if (d.income?.avgEarnedIncomeDKK) {
+      lines.push(`- Avg. earned income: ${Math.round(d.income.avgEarnedIncomeDKK / 1000)}k DKK/worker, avg. disposable: ${Math.round(d.income.avgDisposableIncomeDKK / 1000)}k DKK/earner`);
+    }
 
     demoPart = `
 DEMOGRAPHICS (${context.neighbourhood ?? 'district'}):
-- Total population: ${totalPop.toLocaleString()}
-- Median age: ${d.medianAge ?? '?'} yrs
-- Gender: ${pct(d.male)}% M / ${pct(d.female)}% F
-- Employment: ${pct(d.employment?.employed)}% employed, ${pct(d.employment?.unemployed)}% unemployed
-- Higher education: ${higherEdPct}% have medium or long higher education
-- Background: ${pct(d.background?.danish)}% Danish, ${pct(d.background?.western)}% Western, ${pct(d.background?.nonWestern)}% Non-Western
-- Marital: ${pct(d.maritalStatus?.single)}% single, ${pct(d.maritalStatus?.married)}% married${incPart}
+${lines.length > 0 ? lines.join('\n') : '- (demographic data layers are disabled)'}
 
 NEARBY FACILITIES within ${context.radius ?? 500}m (OpenStreetMap):
 ${Object.keys(poiSummary).length > 0 ? Object.entries(poiSummary).map(([k, v]) => `  ${k}: ${v}`).join('\n') : '  None found'}`;
