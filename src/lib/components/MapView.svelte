@@ -3,7 +3,7 @@
   import mapboxgl from 'mapbox-gl';
   import { env } from '$env/dynamic/public';
   const PUBLIC_MAPBOX_TOKEN = env.PUBLIC_MAPBOX_TOKEN;
-  import { analysisRadius } from '$lib/stores/map';
+  import { analysisRadius, mapCenter } from '$lib/stores/map';
   import { brief } from '$lib/stores/brief';
   import { layers } from '$lib/stores/layers';
 
@@ -280,6 +280,11 @@
 
     // Custom layers are re-added on every style load (handles initial load + style switch)
     map.on('style.load', setupCustomLayers);
+
+    map.on('moveend', () => {
+      const c = map!.getCenter();
+      mapCenter.set({ lng: c.lng, lat: c.lat });
+    });
 
     // Map click → reverse geocode → trigger analysis
     map.on('click', async (e) => {

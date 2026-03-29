@@ -1,7 +1,8 @@
 <script lang="ts">
   import { Search, MapPin, X, ChevronLeft } from 'lucide-svelte';
-  import { searchAddress, type AddressSuggestion } from '$lib/api/dawa';
+  import { searchAddress, geocodeAddress, type AddressSuggestion } from '$lib/api/dawa';
   import { layers } from '$lib/stores/layers';
+  import { mapCenter } from '$lib/stores/map';
   import LayerToggle from './LayerToggle.svelte';
 
   let {
@@ -60,7 +61,7 @@
     activeIndex = -1;
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  async function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       showDropdown = false;
       activeIndex = -1;
@@ -70,9 +71,19 @@
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       activeIndex = Math.max(activeIndex - 1, -1);
-    } else if (e.key === 'Enter' && activeIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      selectSuggestion(suggestions[activeIndex]);
+      if (activeIndex >= 0) {
+        selectSuggestion(suggestions[activeIndex]);
+      } else if (suggestions.length > 0) {
+        selectSuggestion(suggestions[0]);
+      } else if (query.trim().length >= 2) {
+        isSearching = true;
+        showDropdown = false;
+        const result = await geocodeAddress(query.trim(), $mapCenter);
+        isSearching = false;
+        if (result) selectSuggestion(result);
+      }
     }
   }
 </script>
