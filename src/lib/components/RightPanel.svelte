@@ -22,21 +22,16 @@
   let isSocialLoading = $state(false);
   let socialFetchedFor = $state<string | null>(null);
 
-  let employedPct = $derived(
-    $brief && $brief.demographics.totalPopulation > 0
-      ? Math.round(
-          ($brief.demographics.employment.employed / $brief.demographics.totalPopulation) * 100
-        )
-      : 0
-  );
+  // Safe-access derived values — guard against demographics being undefined
+  let employedPct = $derived(() => {
+    const d = $brief?.demographics;
+    if (!d || !d.totalPopulation) return 0;
+    return Math.round((d.employment.employed / d.totalPopulation) * 100);
+  });
 
   let densityLabel = $derived(
-    $brief && $brief.pois
-      ? $brief.pois.length > 20
-        ? 'High'
-        : $brief.pois.length > 8
-          ? 'Medium'
-          : 'Low'
+    $brief?.pois
+      ? $brief.pois.length > 20 ? 'High' : $brief.pois.length > 8 ? 'Medium' : 'Low'
       : '--'
   );
 
@@ -75,30 +70,23 @@
 </script>
 
 <aside class="right-panel">
+  <!-- Mobile drag handle -->
+  <div class="drag-handle" aria-hidden="true">
+    <span class="handle-bar"></span>
+  </div>
+
   <div class="panel-header">
     <h2>Area Brief</h2>
   </div>
 
   <div class="tab-bar">
-    <button
-      class="tab"
-      class:active={activeTab === 'brief'}
-      onclick={() => (activeTab = 'brief')}
-    >
+    <button class="tab" class:active={activeTab === 'brief'} onclick={() => (activeTab = 'brief')}>
       Insights
     </button>
-    <button
-      class="tab"
-      class:active={activeTab === 'insights'}
-      onclick={() => (activeTab = 'insights')}
-    >
+    <button class="tab" class:active={activeTab === 'insights'} onclick={() => (activeTab = 'insights')}>
       Metrics
     </button>
-    <button
-      class="tab"
-      class:active={activeTab === 'social'}
-      onclick={switchToSocial}
-    >
+    <button class="tab" class:active={activeTab === 'social'} onclick={switchToSocial}>
       Social
     </button>
   </div>
@@ -107,12 +95,13 @@
     {#if !$selectedLocation}
       <div class="empty-state">
         <MapPin size={32} color="#9ca3af" />
-        <p>Enter an address above to explore this area</p>
+        <p>Select an address or tap the map to explore this area</p>
       </div>
+
     {:else if activeTab === 'brief'}
       {#if $isAnalyzing}
         <SkeletonBrief />
-      {:else if $brief}
+      {:else if $brief?.demographics}
         <div class="brief-content">
           <p class="meta">
             {$brief.neighbourhood} &middot; Copenhagen &middot; Generated just now
@@ -120,15 +109,12 @@
 
           <div class="stat-row">
             <StatCard label="Age" value={$brief.demographics.medianAge} unit="yrs" />
-            <StatCard label="Employment" value="{employedPct}%" unit="employed" />
+            <StatCard label="Employment" value="{employedPct()}%" unit="employed" />
             <StatCard label="Density" value={densityLabel} unit="" />
           </div>
 
           <div class="recommendation">
-            <p class="rec-label">
-              <Sparkles size={12} />
-              AI RECOMMENDATION
-            </p>
+            <p class="rec-label"><Sparkles size={12} /> AI RECOMMENDATION</p>
             <p class="rec-top-use">{$brief.topUse}</p>
             <p class="rec-summary">{$brief.summary}</p>
           </div>
@@ -147,7 +133,7 @@
                 <p>{msg.content}</p>
               </div>
             {/each}
-            {#if isChatLoading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1].role === 'assistant' && chatMessages[chatMessages.length - 1].content === ''}
+            {#if isChatLoading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1].content === ''}
               <div class="chat-msg assistant typing">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
               </div>
@@ -158,11 +144,13 @@
         </div>
       {:else}
         <div class="empty-state">
-          <p>Analysis could not be completed. Check your API keys.</p>
+          <p>Analysis could not be completed. Check your API keys or try a different location in Copenhagen.</p>
         </div>
       {/if}
+
     {:else if activeTab === 'insights'}
       <InsightsPanel />
+
     {:else if activeTab === 'social'}
       <SocialPanel data={socialData} isLoading={isSocialLoading} onRadiusApply={handleRadiusApply} />
     {/if}
@@ -173,15 +161,36 @@
   .right-panel {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     background: var(--color-surface);
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.06);
     z-index: 10;
     overflow: hidden;
   }
 
+  /* Mobile drag handle */
+  .drag-handle {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0 4px;
+    flex-shrink: 0;
+  }
+
+  .handle-bar {
+    width: 40px;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .drag-handle { display: flex; }
+  }
+
   .panel-header {
     padding: 20px 20px 0;
+    flex-shrink: 0;
   }
 
   .panel-header h2 {
@@ -194,6 +203,7 @@
     display: flex;
     gap: 4px;
     padding: 12px 20px;
+    flex-shrink: 0;
   }
 
   .tab {
@@ -206,6 +216,7 @@
     background: transparent;
     color: var(--color-text-muted);
     transition: all 0.15s;
+    white-space: nowrap;
   }
 
   .tab.active {
@@ -217,6 +228,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 20px 20px;
+    min-height: 0;
   }
 
   .empty-state {
@@ -232,6 +244,7 @@
   .empty-state p {
     font-size: 13px;
     color: var(--color-text-muted);
+    line-height: 1.5;
   }
 
   .brief-content {
@@ -251,9 +264,7 @@
     gap: 8px;
   }
 
-  .recommendation {
-    padding: 0;
-  }
+  .recommendation { padding: 0; }
 
   .rec-label {
     display: flex;
@@ -306,7 +317,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 300px;
+    max-height: 280px;
     overflow-y: auto;
   }
 
@@ -330,7 +341,6 @@
     max-width: 85%;
   }
 
-  /* Typing indicator */
   .chat-msg.typing {
     display: flex;
     align-items: center;

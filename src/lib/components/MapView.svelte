@@ -12,13 +12,15 @@
   let map: mapboxgl.Map | null = $state(null);
   let marker: mapboxgl.Marker | null = null;
   let isSatellite = $state(false);
+
+  // Plain (non-reactive) variables used only in imperative Mapbox calls
   let currentLng = 0;
   let currentLat = 0;
   let currentRadius = 500;
-  let currentPois = $state<any[]>([]);
-  let facilitiesActive = $state(false);
+  let currentPois: any[] = [];
+  let facilitiesActive = false;
 
-  // ─── Category config ────────────────────────────────────────────────────────
+  // ─── Category config ───────────────────────────────────────────────────────
   const CATEGORY: Record<string, { color: string; label: string }> = {
     hospital:      { color: '#ef4444', label: 'Healthcare' },
     pharmacy:      { color: '#ef4444', label: 'Healthcare' },
@@ -29,25 +31,28 @@
     restaurant:    { color: '#f97316', label: 'Food & Drink' },
     cafe:          { color: '#f97316', label: 'Food & Drink' },
     bar:           { color: '#f97316', label: 'Food & Drink' },
-    park:          { color: '#22c55e', label: 'Parks & Recreation' },
-    playground:    { color: '#22c55e', label: 'Parks & Recreation' },
-    sports_centre: { color: '#22c55e', label: 'Parks & Recreation' },
+    park:          { color: '#22c55e', label: 'Recreation' },
+    playground:    { color: '#22c55e', label: 'Recreation' },
+    sports_centre: { color: '#22c55e', label: 'Recreation' },
   };
   const DEFAULT_COLOR = '#6b7280';
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
+  // ─── Reactive state for template only ─────────────────────────────────────
+  let showLegend = $state(false);
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   function createCircleGeoJSON(lng: number, lat: number, radiusMeters: number) {
     const points = 64;
     const coords: [number, number][] = [];
-    const earthRadius = 6371000;
+    const R = 6371000;
     for (let i = 0; i <= points; i++) {
       const angle = (i / points) * 2 * Math.PI;
       const dx = radiusMeters * Math.cos(angle);
       const dy = radiusMeters * Math.sin(angle);
-      const newLat = lat + (dy / earthRadius) * (180 / Math.PI);
-      const newLng =
-        lng + (dx / (earthRadius * Math.cos((lat * Math.PI) / 180))) * (180 / Math.PI);
-      coords.push([newLng, newLat]);
+      coords.push([
+        lng + (dx / (R * Math.cos((lat * Math.PI) / 180))) * (180 / Math.PI),
+        lat + (dy / R) * (180 / Math.PI),
+      ]);
     }
     return {
       type: 'Feature' as const,
@@ -61,9 +66,7 @@
     currentLng = lng;
     currentLat = lat;
     const geojson = createCircleGeoJSON(lng, lat, radius);
-    (map.getSource('radius-circle') as mapboxgl.GeoJSONSource | undefined)?.setData(
-      geojson as any
-    );
+    (map.getSource('radius-circle') as mapboxgl.GeoJSONSource | undefined)?.setData(geojson as any);
   }
 
   function buildPOIFeatures(pois: any[]) {
@@ -73,8 +76,8 @@
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
         properties: {
-          name: p.name,
-          type: p.type,
+          name: p.name ?? 'Unnamed',
+          type: p.type ?? '',
           category: CATEGORY[p.type]?.label ?? 'Other',
           color: CATEGORY[p.type]?.color ?? DEFAULT_COLOR,
         },
@@ -84,8 +87,8 @@
 
   function updatePOISource(pois: any[]) {
     if (!map) return;
-    const source = map.getSource('pois') as mapboxgl.GeoJSONSource | undefined;
-    source?.setData(buildPOIFeatures(pois) as any);
+    const src = map.getSource('pois') as mapboxgl.GeoJSONSource | undefined;
+    src?.setData(buildPOIFeatures(pois) as any);
   }
 
   function setPOIVisibility(visible: boolean) {
@@ -94,13 +97,48 @@
     for (const id of ['poi-clusters', 'poi-cluster-count', 'poi-points']) {
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
     }
+    showLegend = visible && currentPois.length > 0;
   }
 
-  // ─── Setup all custom sources/layers after each style load ──────────────────
+  // ─── Named handlers (prevents duplication on style reload) ────────────────
+  function onClusterClick(e: mapboxgl.MapMouseEvent) {
+    if (!map) return;
+    const features = map.queryRenderedFeatures(e.point, { layers: ['poi-clusters'] });
+    const clusterId = features[0]?.properties?.cluster_id;
+    if (clusterId == null) return;
+    (map.getSource('pois') as mapboxgl.GeoJSONSource).getClusterExpansionZoom(
+      clusterId,
+      (err, zoom) => {
+        if (err || zoom == null) return;
+        map!.easeTo({ center: (features[0].geometry as any).coordinates, zoom });
+      }
+    );
+  }
+
+  function onPointClick(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
+    if (!map || !e.features?.length) return;
+    const feature = e.features[0];
+    const coords: [number, number] = (feature.geometry as any).coordinates.slice();
+    const { name, category } = feature.properties as any;
+    new mapboxgl.Popup({ closeButton: true, maxWidth: '200px' })
+      .setLngLat(coords)
+      .setHTML(
+        `<div style="font-size:13px;font-weight:600;color:#1a1a1a">${name}</div>` +
+        `<div style="font-size:11px;color:#6b7280;margin-top:2px">${category}</div>`
+      )
+      .addTo(map);
+  }
+
+  function onClusterEnter() { if (map) map.getCanvas().style.cursor = 'pointer'; }
+  function onClusterLeave() { if (map) map.getCanvas().style.cursor = ''; }
+  function onPointEnter()   { if (map) map.getCanvas().style.cursor = 'pointer'; }
+  function onPointLeave()   { if (map) map.getCanvas().style.cursor = ''; }
+
+  // ─── Setup custom layers (called on every style.load) ─────────────────────
   function setupCustomLayers() {
     if (!map) return;
 
-    // Radius circle (fill + border)
+    // Radius circle
     map.addSource('radius-circle', {
       type: 'geojson',
       data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[]] }, properties: {} },
@@ -118,10 +156,8 @@
       paint: { 'line-color': '#2563eb', 'line-width': 2, 'line-dasharray': [2, 2] },
     });
 
-    // Restore circle if we already have a location
-    if (currentLng && currentLat) {
-      updateCircle(currentLng, currentLat, currentRadius);
-    }
+    // Restore circle if location already selected
+    if (currentLng && currentLat) updateCircle(currentLng, currentLat, currentRadius);
 
     // POI source with clustering
     map.addSource('pois', {
@@ -132,17 +168,13 @@
       clusterRadius: 50,
     });
 
-    // Cluster background circles
     map.addLayer({
       id: 'poi-clusters',
       type: 'circle',
       source: 'pois',
       filter: ['has', 'point_count'],
       paint: {
-        'circle-color': [
-          'step', ['get', 'point_count'],
-          '#2563eb', 10, '#1d4ed8', 30, '#1e3a8a',
-        ],
+        'circle-color': ['step', ['get', 'point_count'], '#2563eb', 10, '#1d4ed8', 30, '#1e3a8a'],
         'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28],
         'circle-opacity': 0.88,
         'circle-stroke-width': 2,
@@ -150,7 +182,6 @@
       },
     });
 
-    // Cluster count labels
     map.addLayer({
       id: 'poi-cluster-count',
       type: 'symbol',
@@ -164,7 +195,6 @@
       paint: { 'text-color': '#ffffff' },
     });
 
-    // Individual POI dots (color-coded by category)
     map.addLayer({
       id: 'poi-points',
       type: 'circle',
@@ -179,50 +209,26 @@
       },
     });
 
-    // Apply current visibility state
+    // Re-register interaction handlers (remove first to avoid duplicates on style change)
+    map.off('click', 'poi-clusters', onClusterClick as any);
+    map.off('click', 'poi-points',   onPointClick as any);
+    map.off('mouseenter', 'poi-clusters', onClusterEnter);
+    map.off('mouseleave', 'poi-clusters', onClusterLeave);
+    map.off('mouseenter', 'poi-points',   onPointEnter);
+    map.off('mouseleave', 'poi-points',   onPointLeave);
+
+    map.on('click', 'poi-clusters', onClusterClick as any);
+    map.on('click', 'poi-points',   onPointClick as any);
+    map.on('mouseenter', 'poi-clusters', onClusterEnter);
+    map.on('mouseleave', 'poi-clusters', onClusterLeave);
+    map.on('mouseenter', 'poi-points',   onPointEnter);
+    map.on('mouseleave', 'poi-points',   onPointLeave);
+
+    // Apply current visibility
     setPOIVisibility(facilitiesActive);
-
-    // ── Interactions ──────────────────────────────────────────────────────────
-    // Click cluster → zoom in
-    map.on('click', 'poi-clusters', (e) => {
-      const features = map!.queryRenderedFeatures(e.point, { layers: ['poi-clusters'] });
-      const clusterId = features[0]?.properties?.cluster_id;
-      if (clusterId == null) return;
-      (map!.getSource('pois') as mapboxgl.GeoJSONSource).getClusterExpansionZoom(
-        clusterId,
-        (err, zoom) => {
-          if (err || zoom == null) return;
-          map!.easeTo({
-            center: (features[0].geometry as any).coordinates,
-            zoom,
-          });
-        }
-      );
-    });
-
-    // Click individual POI → popup
-    map.on('click', 'poi-points', (e) => {
-      const feature = e.features?.[0];
-      if (!feature) return;
-      const coords: [number, number] = (feature.geometry as any).coordinates.slice();
-      const { name, category } = feature.properties as any;
-      new mapboxgl.Popup({ closeButton: true, maxWidth: '200px' })
-        .setLngLat(coords)
-        .setHTML(
-          `<div style="font-size:13px;font-weight:600">${name}</div>` +
-          `<div style="font-size:11px;color:#6b7280;margin-top:2px">${category}</div>`
-        )
-        .addTo(map!);
-    });
-
-    // Cursor changes
-    map.on('mouseenter', 'poi-clusters', () => { map!.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'poi-clusters', () => { map!.getCanvas().style.cursor = ''; });
-    map.on('mouseenter', 'poi-points',   () => { map!.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'poi-points',   () => { map!.getCanvas().style.cursor = ''; });
   }
 
-  // ─── Reactive store subscriptions ───────────────────────────────────────────
+  // ─── Store subscriptions ──────────────────────────────────────────────────
   const unsubRadius = analysisRadius.subscribe((radius) => {
     currentRadius = radius;
     if (currentLng && currentLat && map?.isStyleLoaded()) {
@@ -230,17 +236,22 @@
     }
   });
 
-  const unsubBrief = brief.subscribe(($brief) => {
-    currentPois = $brief?.pois ?? [];
-    if (map?.isStyleLoaded()) updatePOISource(currentPois);
+  const unsubBrief = brief.subscribe((briefVal) => {
+    currentPois = briefVal?.pois ?? [];
+    if (map?.isStyleLoaded()) {
+      updatePOISource(currentPois);
+      // Update legend visibility if facilities layer is on
+      if (facilitiesActive) showLegend = currentPois.length > 0;
+    }
   });
 
-  const unsubLayers = layers.subscribe(($layers) => {
-    facilitiesActive = $layers.find((l) => l.id === 'facilities')?.active ?? false;
-    if (map?.isStyleLoaded()) setPOIVisibility(facilitiesActive);
+  const unsubLayers = layers.subscribe((layersVal) => {
+    const active = layersVal.find((l) => l.id === 'facilities')?.active ?? false;
+    facilitiesActive = active;
+    if (map?.isStyleLoaded()) setPOIVisibility(active);
   });
 
-  // ─── Style toggle ────────────────────────────────────────────────────────────
+  // ─── Style toggle ─────────────────────────────────────────────────────────
   function toggleStyle() {
     isSatellite = !isSatellite;
     map?.setStyle(
@@ -250,38 +261,35 @@
     );
   }
 
-  // ─── Public API ──────────────────────────────────────────────────────────────
+  // ─── Public API ───────────────────────────────────────────────────────────
   export function flyTo(lat: number, lon: number) {
     map?.flyTo({ center: [lon, lat], zoom: 15, duration: 1500 });
   }
 
-  // ─── Mount ───────────────────────────────────────────────────────────────────
+  // ─── Mount ────────────────────────────────────────────────────────────────
   onMount(() => {
-    if (!PUBLIC_MAPBOX_TOKEN) {
-      console.warn('Mapbox token not set.');
-      return;
-    }
+    if (!PUBLIC_MAPBOX_TOKEN) return;
     mapboxgl.accessToken = PUBLIC_MAPBOX_TOKEN;
 
     map = new mapboxgl.Map({
       container: mapContainer,
-      style: 'mapbox://styles/mapbox/streets-v12', // default: OSM-like street view
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [12.5683, 55.6761],
       zoom: 12,
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // setupCustomLayers fires on every style load (initial + after toggleStyle)
+    // Custom layers are re-added on every style load (handles initial load + style switch)
     map.on('style.load', setupCustomLayers);
 
-    // Click on map → reverse geocode → trigger analysis
+    // Map click → reverse geocode → trigger analysis
     map.on('click', async (e) => {
-      // Don't trigger if clicking on a POI layer
-      const poiFeatures = map!.queryRenderedFeatures(e.point, {
+      // Skip if user clicked a POI
+      const poiHit = map!.queryRenderedFeatures(e.point, {
         layers: ['poi-clusters', 'poi-points'],
       });
-      if (poiFeatures.length > 0) return;
+      if (poiHit.length > 0) return;
 
       const { lng, lat } = e.lngLat;
       try {
@@ -292,17 +300,14 @@
         const data = await res.json();
         const feature = data.features?.[0];
         const address = feature?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        const context = feature?.context || [];
-        const postcode = context.find((c: any) => c.id?.startsWith('postcode'))?.text || '';
+        const ctx = feature?.context ?? [];
+        const postcode = ctx.find((c: any) => c.id?.startsWith('postcode'))?.text ?? '';
         const neighbourhood =
-          context.find((c: any) => c.id?.startsWith('neighborhood') || c.id?.startsWith('locality'))
-            ?.text || '';
+          ctx.find((c: any) => c.id?.startsWith('neighborhood') || c.id?.startsWith('locality'))
+            ?.text ?? '';
 
         if (marker) marker.remove();
-        marker = new mapboxgl.Marker({ color: '#2563eb' })
-          .setLngLat([lng, lat])
-          .addTo(map!);
-
+        marker = new mapboxgl.Marker({ color: '#2563eb' }).setLngLat([lng, lat]).addTo(map!);
         updateCircle(lng, lat, currentRadius);
 
         onPlotSelected({ lat, lon: lng, address, postnr: postcode, neighbourhood, kommunekode: '0101' });
@@ -316,7 +321,7 @@
     unsubRadius();
     unsubBrief();
     unsubLayers();
-    if (map) map.remove();
+    map?.remove();
   });
 </script>
 
@@ -328,28 +333,36 @@
   {/if}
 
   <!-- Style toggle button -->
-  <button class="style-toggle" onclick={toggleStyle} title={isSatellite ? 'Switch to street view' : 'Switch to satellite'}>
+  <button
+    class="map-btn style-toggle"
+    onclick={toggleStyle}
+    title={isSatellite ? 'Switch to street view' : 'Switch to satellite'}
+    aria-label="Toggle map style"
+  >
     {#if isSatellite}
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Grid/street icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
         <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
       </svg>
     {:else}
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.22 4.22l2.12 2.12m11.32 11.32 2.12 2.12M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+      <!-- Satellite icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m5 19 3.5-3.5M9 15l4-8 8-4-4 8-8 4Z"/><circle cx="13" cy="11" r="1"/>
+        <path d="M19 5 9 15"/>
       </svg>
     {/if}
   </button>
 
-  <!-- Legend (shown when facilities layer is active) -->
-  {#if facilitiesActive && currentPois.length > 0}
-    <div class="poi-legend">
-      <div class="legend-row"><span class="legend-dot" style="background:#ef4444"></span>Healthcare</div>
-      <div class="legend-row"><span class="legend-dot" style="background:#3b82f6"></span>Education</div>
-      <div class="legend-row"><span class="legend-dot" style="background:#f97316"></span>Food & Drink</div>
-      <div class="legend-row"><span class="legend-dot" style="background:#22c55e"></span>Recreation</div>
-      <div class="legend-row"><span class="legend-dot" style="background:#6b7280"></span>Other</div>
+  <!-- POI legend (shown when facilities layer active and POIs exist) -->
+  {#if showLegend}
+    <div class="poi-legend" role="complementary" aria-label="Facility categories">
+      <p class="legend-title">Facilities</p>
+      <div class="legend-row"><span class="dot" style="background:#ef4444"></span>Healthcare</div>
+      <div class="legend-row"><span class="dot" style="background:#3b82f6"></span>Education</div>
+      <div class="legend-row"><span class="dot" style="background:#f97316"></span>Food & Drink</div>
+      <div class="legend-row"><span class="dot" style="background:#22c55e"></span>Recreation</div>
+      <div class="legend-row"><span class="dot" style="background:#6b7280"></span>Other</div>
     </div>
   {/if}
 </div>
@@ -372,12 +385,10 @@
     font-size: 14px;
   }
 
-  /* Style toggle button — bottom-left */
-  .style-toggle {
+  /* Shared map button style */
+  .map-btn {
     position: absolute;
-    bottom: 28px;
-    left: 10px;
-    z-index: 10;
+    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -392,23 +403,36 @@
     transition: background 0.15s;
   }
 
-  .style-toggle:hover {
-    background: #f3f4f6;
+  .map-btn:hover { background: #f3f4f6; }
+
+  .style-toggle {
+    bottom: 28px;
+    left: 10px;
   }
 
-  /* POI category legend — bottom-left above toggle */
+  /* POI legend */
   .poi-legend {
     position: absolute;
     bottom: 72px;
     left: 10px;
-    z-index: 10;
-    background: rgba(255, 255, 255, 0.94);
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.95);
     border-radius: 8px;
     padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
+    min-width: 130px;
+  }
+
+  .legend-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-text-muted);
+    margin-bottom: 2px;
   }
 
   .legend-row {
@@ -420,11 +444,12 @@
     font-weight: 500;
   }
 
-  .legend-dot {
+  .dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,0.8);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
   }
 </style>

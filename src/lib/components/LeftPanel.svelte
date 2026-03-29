@@ -1,10 +1,18 @@
 <script lang="ts">
-  import { Search, MapPin, X } from 'lucide-svelte';
+  import { Search, MapPin, X, ChevronLeft } from 'lucide-svelte';
   import { searchAddress, type AddressSuggestion } from '$lib/api/dawa';
   import { layers } from '$lib/stores/layers';
   import LayerToggle from './LayerToggle.svelte';
 
-  let { onLocationSelected }: { onLocationSelected: (data: any) => void } = $props();
+  let {
+    onLocationSelected,
+    isOpen = true,
+    onToggle,
+  }: {
+    onLocationSelected: (data: any) => void;
+    isOpen?: boolean;
+    onToggle?: () => void;
+  } = $props();
 
   let query = $state('');
   let suggestions = $state<AddressSuggestion[]>([]);
@@ -74,8 +82,17 @@
 <aside class="left-panel">
   <div class="panel-content">
     <header class="brand">
-      <h1 class="wordmark">City Lens</h1>
-      <p class="subtitle">SOCIAL FABRIC EXPLORER</p>
+      <div class="brand-row">
+        <div>
+          <h1 class="wordmark">City Lens</h1>
+          <p class="subtitle">SOCIAL FABRIC EXPLORER</p>
+        </div>
+        {#if onToggle}
+          <button class="collapse-btn" onclick={onToggle} title="Collapse sidebar" aria-label="Collapse sidebar">
+            <ChevronLeft size={16} />
+          </button>
+        {/if}
+      </div>
     </header>
 
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -83,9 +100,9 @@
     <div class="search-section" onclick={(e: MouseEvent) => e.stopPropagation()}>
       <div class="search-input-wrapper" class:searching={isSearching}>
         {#if isSearching}
-          <span class="spinner"></span>
+          <span class="spinner" aria-hidden="true"></span>
         {:else}
-          <Search size={16} />
+          <Search size={15} />
         {/if}
         <input
           type="text"
@@ -94,25 +111,26 @@
           oninput={handleInput}
           onkeydown={handleKeydown}
           autocomplete="off"
+          spellcheck="false"
         />
         {#if query.length > 0}
-          <button class="clear-btn" onclick={clearSearch} tabindex="-1">
-            <X size={14} />
+          <button class="clear-btn" onclick={clearSearch} tabindex="-1" aria-label="Clear search">
+            <X size={13} />
           </button>
         {/if}
       </div>
 
       {#if showDropdown && suggestions.length > 0}
-        <ul class="suggestions" role="listbox">
+        <ul class="suggestions" role="listbox" aria-label="Address suggestions">
           {#each suggestions as s, i}
+            <!-- svelte-ignore a11y_mouse_events_have_key_events -->
             <li role="option" aria-selected={i === activeIndex}>
-              <!-- svelte-ignore a11y_mouse_events_have_key_events -->
               <button
                 onclick={() => selectSuggestion(s)}
                 class:highlighted={i === activeIndex}
                 onmouseenter={() => (activeIndex = i)}
               >
-                <span class="item-icon"><MapPin size={12} /></span>
+                <span class="item-icon" aria-hidden="true"><MapPin size={11} /></span>
                 <span class="suggestion-text">
                   <span class="primary">{s.primaryLine}</span>
                   <span class="secondary">{s.secondaryLine}</span>
@@ -133,7 +151,7 @@
   </div>
 
   <footer class="panel-footer">
-    <p>AEC Hackathon - Copenhagen 2026</p>
+    <p>AEC Hackathon · Copenhagen 2026</p>
   </footer>
 </aside>
 
@@ -141,40 +159,70 @@
   .left-panel {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     background: var(--color-surface);
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
     z-index: 10;
     overflow-y: auto;
+    overflow-x: hidden;
+    width: 320px;
+    min-width: 0;
   }
 
   .panel-content {
     flex: 1;
-    padding: 24px 20px;
+    padding: 20px 18px;
   }
 
-  .brand {
-    margin-bottom: 28px;
+  /* Brand row */
+  .brand { margin-bottom: 24px; }
+
+  .brand-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
   }
 
   .wordmark {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--color-text);
     margin: 0;
+    line-height: 1.2;
   }
 
   .subtitle {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--color-text-muted);
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-top: 4px;
+    margin-top: 3px;
   }
 
+  .collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .collapse-btn:hover {
+    background: #f3f4f6;
+    color: var(--color-text);
+  }
+
+  /* Search */
   .search-section {
     position: relative;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
 
   .search-input-wrapper {
@@ -186,12 +234,13 @@
     border-radius: var(--radius-md);
     background: #f9fafb;
     color: var(--color-text-muted);
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background 0.15s;
   }
 
   .search-input-wrapper:focus-within {
     border-color: var(--color-primary);
     background: #fff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
   }
 
   input {
@@ -201,11 +250,10 @@
     font-size: 13px;
     width: 100%;
     color: var(--color-text);
+    min-width: 0;
   }
 
-  input::placeholder {
-    color: #9ca3af;
-  }
+  input::placeholder { color: #9ca3af; }
 
   .clear-btn {
     display: flex;
@@ -217,13 +265,11 @@
     color: #9ca3af;
     padding: 0;
     flex-shrink: 0;
+    transition: color 0.1s;
   }
 
-  .clear-btn:hover {
-    color: var(--color-text);
-  }
+  .clear-btn:hover { color: var(--color-text); }
 
-  /* Loading spinner */
   .spinner {
     display: inline-block;
     width: 14px;
@@ -235,10 +281,9 @@
     flex-shrink: 0;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Suggestions dropdown */
   .suggestions {
     position: absolute;
     top: calc(100% + 4px);
@@ -266,6 +311,7 @@
     background: none;
     cursor: pointer;
     color: var(--color-text);
+    transition: background 0.1s;
   }
 
   .suggestions li button.highlighted,
@@ -303,22 +349,22 @@
     text-overflow: ellipsis;
   }
 
+  /* Layers */
   .section-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--color-text-muted);
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     font-weight: 600;
   }
 
-  .layers-section {
-    margin-top: 8px;
-  }
+  .layers-section { margin-top: 4px; }
 
   .panel-footer {
-    padding: 16px 20px;
+    padding: 14px 18px;
     border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
   }
 
   .panel-footer p {
@@ -326,5 +372,14 @@
     color: #9ca3af;
     letter-spacing: 1px;
     text-align: center;
+  }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .left-panel { width: 280px; }
+  }
+
+  @media (max-width: 900px) {
+    .left-panel { width: 280px; }
   }
 </style>
