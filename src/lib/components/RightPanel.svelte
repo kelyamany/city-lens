@@ -43,6 +43,8 @@
   async function fetchSocialData(lat: number, lon: number, radius: number) {
     isSocialLoading = true;
     socialData = null;
+    const key = `${lat},${lon},${radius}`;
+    socialFetchedFor = key;
     try {
       const res = await fetch('/api/social', {
         method: 'POST',
@@ -62,9 +64,13 @@
     const loc = $selectedLocation;
     const key = loc ? `${loc.lat},${loc.lon},${$analysisRadius}` : null;
     if (loc && key !== socialFetchedFor) {
-      socialFetchedFor = key;
       fetchSocialData(loc.lat, loc.lon, $analysisRadius);
     }
+  }
+
+  function handleRadiusApply() {
+    const loc = $selectedLocation;
+    if (loc) fetchSocialData(loc.lat, loc.lon, $analysisRadius);
   }
 </script>
 
@@ -158,7 +164,7 @@
     {:else if activeTab === 'insights'}
       <InsightsPanel />
     {:else if activeTab === 'social'}
-      <SocialPanel data={socialData} isLoading={isSocialLoading} />
+      <SocialPanel data={socialData} isLoading={isSocialLoading} onRadiusApply={handleRadiusApply} />
     {/if}
   </div>
 </aside>

@@ -1,7 +1,25 @@
 <script lang="ts">
-  import type { SocialData, SocialCategory } from '$lib/types';
+  import { analysisRadius } from '$lib/stores/map';
+  import type { SocialData } from '$lib/types';
 
-  let { data, isLoading }: { data: SocialData | null; isLoading: boolean } = $props();
+  let {
+    data,
+    isLoading,
+    onRadiusApply,
+  }: {
+    data: SocialData | null;
+    isLoading: boolean;
+    onRadiusApply: () => void;
+  } = $props();
+
+  // Track whether the radius has changed since the last fetch
+  let appliedRadius = $state($analysisRadius);
+  let radiusDirty = $derived($analysisRadius !== appliedRadius && !isLoading);
+
+  function applyRadius() {
+    appliedRadius = $analysisRadius;
+    onRadiusApply();
+  }
 
   function stars(rating: number): { full: number; half: boolean; empty: number } {
     const full = Math.floor(rating);
@@ -18,13 +36,34 @@
   }
 
   let hasData = $derived(data && data.categories.length > 0 && !data.error);
-  let categoriesWithData = $derived(
-    hasData ? data!.categories.filter((c) => c.count > 0) : []
-  );
+  let categoriesWithData = $derived(hasData ? data!.categories.filter((c) => c.count > 0) : []);
   let noCategories = $derived(hasData && categoriesWithData.length === 0);
 </script>
 
 <div class="social-panel">
+  <!-- Radius control -->
+  <div class="radius-section">
+    <div class="radius-header">
+      <span class="radius-label">Analysis Radius</span>
+      <span class="radius-value">{$analysisRadius}m</span>
+    </div>
+    <input
+      type="range"
+      min="100"
+      max="2000"
+      step="100"
+      bind:value={$analysisRadius}
+      class="radius-slider"
+    />
+    {#if radiusDirty}
+      <button class="apply-btn" onclick={applyRadius}>
+        Refresh with {$analysisRadius}m radius
+      </button>
+    {:else}
+      <p class="radius-note">Drag to change · affects map circle and social data</p>
+    {/if}
+  </div>
+
   {#if isLoading}
     <div class="loading-grid">
       {#each Array(6) as _}
@@ -39,17 +78,22 @@
   {:else if !data || data.error}
     <div class="empty-state">
       <p class="empty-title">Social Ratings Unavailable</p>
-      <p class="empty-hint">Add <code>GOOGLE_PLACES_API_KEY</code> to <code>.env</code> to enable live social data for this area.</p>
+      <p class="empty-hint">
+        Add <code>GOOGLE_PLACES_API_KEY</code> to <code>.env</code> to enable live social data for
+        this area.
+      </p>
     </div>
 
   {:else if noCategories}
     <div class="empty-state">
       <p class="empty-title">No places found nearby</p>
-      <p class="empty-hint">Try increasing the analysis radius in the Metrics tab.</p>
+      <p class="empty-hint">Try increasing the analysis radius above.</p>
     </div>
 
   {:else}
-    <p class="panel-intro">Average Google Maps ratings for nearby places within the analysis radius.</p>
+    <p class="panel-intro">
+      Average Google Maps ratings for nearby places within {$analysisRadius}m.
+    </p>
 
     <div class="categories-grid">
       {#each categoriesWithData as cat}
@@ -92,12 +136,69 @@
 <style>
   .social-panel {
     padding-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Radius control */
+  .radius-section {
+    background: #f3f4f6;
+    border-radius: var(--radius-md);
+    padding: 12px;
+  }
+
+  .radius-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .radius-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .radius-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .radius-slider {
+    width: 100%;
+    accent-color: var(--color-primary);
+  }
+
+  .radius-note {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+  }
+
+  .apply-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 7px 12px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .apply-btn:hover {
+    background: #1d4ed8;
   }
 
   .panel-intro {
     font-size: 11px;
     color: var(--color-text-muted);
-    margin-bottom: 14px;
     line-height: 1.5;
   }
 
@@ -123,9 +224,9 @@
     animation: pulse 1.5s ease-in-out infinite;
   }
 
-  .skel-title { height: 12px; width: 60%; }
-  .skel-stars { height: 16px; width: 80%; }
-  .skel-sub { height: 10px; width: 40%; }
+  .skel-title  { height: 12px; width: 60%; }
+  .skel-stars  { height: 16px; width: 80%; }
+  .skel-sub    { height: 10px; width: 40%; }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -139,7 +240,7 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 48px 16px;
+    padding: 32px 16px;
     text-align: center;
   }
 
@@ -216,22 +317,10 @@
     gap: 1px;
   }
 
-  .star {
-    font-size: 13px;
-  }
-
-  .star.full {
-    color: #f59e0b;
-  }
-
-  .star.half {
-    color: #f59e0b;
-    opacity: 0.6;
-  }
-
-  .star.empty {
-    color: #d1d5db;
-  }
+  .star        { font-size: 13px; }
+  .star.full   { color: #f59e0b; }
+  .star.half   { color: #f59e0b; opacity: 0.6; }
+  .star.empty  { color: #d1d5db; }
 
   .top-places {
     list-style: none;

@@ -3,17 +3,16 @@ import { generateObject } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
+import { env } from '$env/dynamic/private';
 import { getPOIs } from '$lib/api/overpass';
 import { resolveDistrict } from '$lib/api/districtResolver';
-import { AI_PROVIDER, ANTHROPIC_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY } from '$env/static/private';
 
-const anthropicAI = createAnthropic({ apiKey: ANTHROPIC_API_KEY });
-const googleAI = createGoogleGenerativeAI({ apiKey: GOOGLE_GENERATIVE_AI_API_KEY });
-
-const getModel = () =>
-  AI_PROVIDER === 'gemini'
-    ? googleAI('gemini-2.0-flash')
-    : anthropicAI('claude-sonnet-4-6');
+const getModel = () => {
+  if (env.AI_PROVIDER === 'gemini' && env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return createGoogleGenerativeAI({ apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY })('gemini-2.0-flash');
+  }
+  return createAnthropic({ apiKey: env.ANTHROPIC_API_KEY ?? '' })('claude-sonnet-4-6');
+};
 
 const schema = z.object({
   summary: z.string().describe('2-3 sentence description of the area and recommendation'),
@@ -47,7 +46,7 @@ export async function POST({ request }) {
 
 A vacant plot of land is located at: ${address} (${neighbourhood}, Copenhagen, postal code ${postnr}).
 
-AREA DEMOGRAPHICS (${neighbourhood} / ${neighbourhood?.includes('Enghave') ? 'Vesterbro/Kongens Enghave' : 'Copenhagen'} district):
+AREA DEMOGRAPHICS (${neighbourhood} district):
 - Total district population: ${totalPop.toLocaleString()}
 - Median age: ${demographics.medianAge} years
 - Gender split: ${Math.round((demographics.male / totalPop) * 100)}% male / ${Math.round((demographics.female / totalPop) * 100)}% female

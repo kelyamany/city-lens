@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { selectedLocation, analysisRadius } from '$lib/stores/map';
+  import { selectedLocation } from '$lib/stores/map';
   import { resolveDistrict, resolveDistrictName } from '$lib/api/districtResolver';
   import type { Demographics } from '$lib/types';
 
@@ -84,22 +84,6 @@
         <span class="district-name">{districtName}</span>
       </div>
     {/if}
-
-    <div class="radius-section">
-      <div class="radius-header">
-        <span class="radius-label">Analysis Radius</span>
-        <span class="radius-value">{$analysisRadius}m</span>
-      </div>
-      <input
-        type="range"
-        min="100"
-        max="2000"
-        step="100"
-        bind:value={$analysisRadius}
-        class="radius-slider"
-      />
-      <p class="radius-note">Affects nearby facility detection</p>
-    </div>
 
     <section>
       <h4 class="section-title">Population Overview</h4>
@@ -257,42 +241,6 @@
     font-size: 15px;
     font-weight: 700;
     color: var(--color-primary);
-  }
-
-  .radius-section {
-    background: #f3f4f6;
-    border-radius: var(--radius-md);
-    padding: 12px;
-  }
-
-  .radius-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .radius-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-
-  .radius-value {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .radius-slider {
-    width: 100%;
-    accent-color: var(--color-primary);
-  }
-
-  .radius-note {
-    font-size: 10px;
-    color: var(--color-text-muted);
-    margin-top: 4px;
   }
 
   .section-title {
