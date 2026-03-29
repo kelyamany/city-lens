@@ -216,38 +216,46 @@
       }, before);
     }
 
-    // Hover tooltips
-    const addHover = (layerId: string, buildHtml: (props: any) => string) => {
-      map!.off('mousemove', layerId, () => {});
-      map!.off('mouseleave', layerId, () => {});
-      map!.on('mousemove', layerId, (e) => {
-        if (!map || !e.features?.length) return;
-        map.getCanvas().style.cursor = 'default';
-        choroplethPopup?.remove();
-        choroplethPopup = new mapboxgl.Popup({ closeButton: false, offset: 8 })
-          .setLngLat(e.lngLat)
-          .setHTML(buildHtml(e.features[0].properties))
-          .addTo(map);
-      });
-      map!.on('mouseleave', layerId, () => {
-        if (map) map.getCanvas().style.cursor = '';
-        choroplethPopup?.remove();
-        choroplethPopup = null;
-      });
-    };
-
-    addHover('choropleth-demographics', (p) =>
-      `<div style="font-size:12px;font-weight:700;color:#111">${p.districtName}</div>` +
-      `<div style="font-size:11px;color:#374151;margin-top:3px">Employment: <b>${p.employmentRate}%</b></div>` +
-      `<div style="font-size:11px;color:#374151">Median age: <b>${p.medianAge}</b></div>`
-    );
-    addHover('choropleth-income', (p) =>
-      `<div style="font-size:12px;font-weight:700;color:#111">${p.districtName}</div>` +
-      `<div style="font-size:11px;color:#374151;margin-top:3px">Avg. income: <b>${Math.round((p.avgIncome ?? 0) / 1000)}k DKK</b></div>` +
-      `<div style="font-size:11px;color:#374151">Higher ed: <b>${p.higherEdPct}%</b></div>`
-    );
+    // Hover tooltips — named handlers so .off() properly deregisters them
+    for (const layerId of ['choropleth-demographics', 'choropleth-income']) {
+      map!.off('mousemove',  layerId, onChoroplethMove as any);
+      map!.off('mouseleave', layerId, onChoroplethLeave);
+      map!.on('mousemove',   layerId, onChoroplethMove as any);
+      map!.on('mouseleave',  layerId, onChoroplethLeave);
+    }
 
     applyChoroplethVisibility();
+  }
+
+  // ─── Choropleth tooltip helpers (module-level so .off() works) ──────────
+  function buildTooltipHtml(p: Record<string, any>): string {
+    const fmt     = (n: any) => (n != null && n !== '' && n !== 0) ? n : '–';
+    const fmtInc  = (n: any) => n ? `${Math.round(Number(n) / 1000)}k DKK` : '–';
+    return `<div class="ct-popup">
+      <div class="ct-title">${p.districtName ?? 'Area'}</div>
+      <div class="ct-grid">
+        <div class="ct-row"><span class="ct-dot ct-blue"></span><span class="ct-key">Employment</span><span class="ct-val">${fmt(p.employmentRate)}%</span></div>
+        <div class="ct-row"><span class="ct-dot ct-blue"></span><span class="ct-key">Median age</span><span class="ct-val">${fmt(p.medianAge)} yrs</span></div>
+        <div class="ct-row"><span class="ct-dot ct-green"></span><span class="ct-key">Avg. income</span><span class="ct-val">${fmtInc(p.avgIncome)}</span></div>
+        <div class="ct-row"><span class="ct-dot ct-green"></span><span class="ct-key">Higher ed.</span><span class="ct-val">${fmt(p.higherEdPct)}%</span></div>
+      </div>
+    </div>`;
+  }
+
+  function onChoroplethMove(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
+    if (!map || !e.features?.length) return;
+    map.getCanvas().style.cursor = 'default';
+    choroplethPopup?.remove();
+    choroplethPopup = new mapboxgl.Popup({ closeButton: false, offset: 12, className: 'choropleth-popup' })
+      .setLngLat(e.lngLat)
+      .setHTML(buildTooltipHtml(e.features[0].properties as Record<string, any>))
+      .addTo(map);
+  }
+
+  function onChoroplethLeave() {
+    if (map) map.getCanvas().style.cursor = '';
+    choroplethPopup?.remove();
+    choroplethPopup = null;
   }
 
   // ─── Named handlers (prevents duplication on style reload) ────────────────
@@ -677,5 +685,54 @@
     justify-content: space-between;
     font-size: 9px;
     color: #6b7280;
+  }
+
+  /* Choropleth hover tooltip card */
+  :global(.choropleth-popup .mapboxgl-popup-content) {
+    padding: 0;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+  :global(.choropleth-popup .mapboxgl-popup-tip) { display: none; }
+  :global(.ct-popup) {
+    padding: 10px 13px 11px;
+    min-width: 170px;
+    font-family: inherit;
+  }
+  :global(.ct-title) {
+    font-size: 12px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 7px;
+    white-space: nowrap;
+  }
+  :global(.ct-grid) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  :global(.ct-row) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  :global(.ct-dot) {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  :global(.ct-blue)  { background: #3b82f6; }
+  :global(.ct-green) { background: #10b981; }
+  :global(.ct-key) {
+    flex: 1;
+    color: #6b7280;
+  }
+  :global(.ct-val) {
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
   }
 </style>
