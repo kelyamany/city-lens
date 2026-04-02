@@ -6,7 +6,7 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: process.env.CF_PAGES ? adapterCloudflare() : adapterNetlify(),
+		adapter: process.env.NETLIFY ? adapterNetlify() : adapterCloudflare(),
 		alias: {
 			'$lib': './src/lib'
 		}
