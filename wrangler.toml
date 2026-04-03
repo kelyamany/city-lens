@@ -5,3 +5,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = ".svelte-kit/cloudflare"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
